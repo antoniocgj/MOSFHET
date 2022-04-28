@@ -1540,7 +1540,7 @@ void test_functional_bootstrap_trgsw(){
   functional_bootstrap_trgsw_phase1(c_trgsw, c[5], bk_key, 4);
   functional_bootstrap_trgsw_phase2(c[4], c_trgsw, lut_c);
 
-  TEST_ASSERT_HEX64_WITHIN_MESSAGE(1UL << 58, in[1], tlwe_phase(c[4], key_tlwe_out), "Bootstrap TRGSW with cleartext LUT failed.");
+  TEST_ASSERT_HEX64_WITHIN_MESSAGE(1UL << 60, in[1], tlwe_phase(c[4], key_tlwe_out), "Bootstrap TRGSW with cleartext LUT failed.");
 
   LUT_Packing_KS_Key ks_key = trlwe_new_packing_KS_key(key_trlwe, key_tlwe_out, t, base_bit, 4);
   TRLWE lut = trlwe_new_noiseless_trivial_sample(0, k, N);
@@ -1549,12 +1549,12 @@ void test_functional_bootstrap_trgsw(){
   TorusPolynomial poly_out = polynomial_new_torus_polynomial(N);
   trlwe_phase(poly_out, lut, key_trlwe);
 
-  TEST_ASSERT_HEX64_ARRAY_WITHIN_MESSAGE(1UL << 58, poly_res->coeffs, poly_out->coeffs, N, "TRLWE Packing KS failed.");
+  TEST_ASSERT_HEX64_ARRAY_WITHIN_MESSAGE(1UL << 60, poly_res->coeffs, poly_out->coeffs, N, "TRLWE Packing KS failed.");
 
   functional_bootstrap_trgsw_phase1(c_trgsw, c[5], bk_key, 4);
   functional_bootstrap_trgsw_phase2(c[4], c_trgsw, lut);
 
-  TEST_ASSERT_HEX64_WITHIN_MESSAGE(1UL << 58, in[1], tlwe_phase(c[4], key_tlwe_out), "Bootstrap TRGSW with encrypted LUT failed.");
+  TEST_ASSERT_HEX64_WITHIN_MESSAGE(1UL << 60, in[1], tlwe_phase(c[4], key_tlwe_out), "Bootstrap TRGSW with encrypted LUT failed.");
   free_tlwe_key(key_tlwe);
   free_tlwe_key(key_tlwe_out);
   free_trlwe_key(key_trlwe);
@@ -1751,34 +1751,12 @@ int main(int argc, char const *argv[])
   // RUN_TEST(test_io_pub);
   // RUN_TEST(test_io_priv);
   // RUN_TEST(test_FDFB_CLOT21_3);
-  RUN_TEST(test_poly_DFT);
-  RUN_TEST(test_poly_DFT_mul);
-  RUN_TEST(test_functional_bootstrap);
-  RUN_TEST(test_functional_bootstrap_unfolded);
-  RUN_TEST(test_FDFB_CLOT21_2);
-  RUN_TEST(test_circuit_bootstrap);
   RUN_TEST(test_normal_generator);
-  RUN_TEST(test_FDFB_CLOT21);
-  RUN_TEST(test_FDFB_KS21);
-  RUN_TEST(test_tlwe_pack1_ks_CDKS21);
   RUN_TEST(test_tlwe);
   RUN_TEST(test_tlwe_ks);
-  RUN_TEST(test_FDFB_new);
-  RUN_TEST(test_tlwe_mul);
-  RUN_TEST(test_trlwe_mul); // tensor prod
-  RUN_TEST(test_programmable_bootstrap);
-  RUN_TEST(test_multivalue_bootstrap_CLOT21);
-  RUN_TEST(test_poly_int128_mul);
-  RUN_TEST(test_public_mux);
-  RUN_TEST(test_tlwe_pack_key_priv_ks);
-  RUN_TEST(test_tlwe_pack1_ks);
-  RUN_TEST(test_trlwe_poly_mul);
-  RUN_TEST(test_trlwe_ks);
-  RUN_TEST(test_trlwe);
-  RUN_TEST(test_compressed_trlwe);
-  RUN_TEST(test_trlwe_packing_ks);
-  RUN_TEST(test_functional_mv_bootstrap);
-  RUN_TEST(test_functional_bootstrap_trgsw);
+  RUN_TEST(test_poly_DFT);
+  RUN_TEST(test_poly_DFT_mul);
+  RUN_TEST(test_tlwe_pack1_ks_CDKS21);
   RUN_TEST(test_blind_rotate);
   RUN_TEST(test_trgsw);
   RUN_TEST(test_trgsw_sub);
@@ -1786,7 +1764,29 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trgsw_dft);
   RUN_TEST(test_trgsw_trlwe_mul);
   RUN_TEST(test_trgsw_mul);
+  RUN_TEST(test_programmable_bootstrap);
+  RUN_TEST(test_tlwe_mul);
+  RUN_TEST(test_trlwe_mul); // tensor prod
+  RUN_TEST(test_trlwe_poly_mul);
+  RUN_TEST(test_trlwe_ks);
+  RUN_TEST(test_trlwe);
+  RUN_TEST(test_compressed_trlwe);
+  RUN_TEST(test_trlwe_packing_ks);
+  RUN_TEST(test_functional_mv_bootstrap);
+  RUN_TEST(test_functional_bootstrap);
+  RUN_TEST(test_circuit_bootstrap);
+  RUN_TEST(test_FDFB_CLOT21_2);
+  RUN_TEST(test_FDFB_CLOT21);
+  RUN_TEST(test_public_mux);
+  RUN_TEST(test_FDFB_KS21);
+  RUN_TEST(test_FDFB_new);
+  RUN_TEST(test_multivalue_bootstrap_CLOT21);
+  RUN_TEST(test_poly_int128_mul);
+  RUN_TEST(test_tlwe_pack_key_priv_ks);
+  RUN_TEST(test_tlwe_pack1_ks);
   RUN_TEST(test_trgsw_reg_sub);
+  RUN_TEST(test_functional_bootstrap_trgsw);
+  RUN_TEST(test_functional_bootstrap_unfolded);
   // HRD tests
   // RUN_TEST(test_trgsw_reg_sub3);
   // RUN_TEST(test_trgsw_naive_mul);

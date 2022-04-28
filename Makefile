@@ -2,7 +2,7 @@ CC = gcc-10
 FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm -I./include/
 DEBUG_FLAGS = -O0 -g $(FLAGS)
 OPT_FLAGS = -O3 -fwhole-program -flto -DNDEBUG $(FLAGS)
-LIB_FLAGS = -O3 -DNDEBUG $(FLAGS)  -fwhole-program -flto -fuse-ld=gold -fuse-linker-plugin
+LIB_FLAGS = -O3 -DNDEBUG $(FLAGS) -flto -fuse-ld=gold -fuse-linker-plugin
 LIBS = 
 LD_LIBS =
 BUILD_LIBS = 
