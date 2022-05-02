@@ -22,6 +22,8 @@ MOSFHET is a pure-C highly-optimized implementation of [TFHE](https://github.com
 
 - BFV-like multiplication [[3]](https://link.springer.com/chapter/10.1007/978-3-030-92078-4_23).
 
+For more details, see our [paper](https://eprint.iacr.org/2022/515). 
+
 ## Build
 
 By default, we use the AVX-512 version of SPQLIOS for fast polynomial arithmetic. It requires [AVX-512 support](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512). You can use the option `FFT_LIB` to specify other libraries. 
@@ -73,7 +75,19 @@ To run the benchmark:
 
 ## Citation
 
-tbd
+```
+@misc{cryptoeprint:2022:515,
+    author       = {Antonio Guimarães and
+		    Edson Borin and
+		    Diego F. Aranha},
+    title        = {MOSFHET: Optimized Software for FHE over the Torus},
+    howpublished = {Cryptology ePrint Archive, Report 2022/515},
+    year         = {2022},
+    note         = {\url{https://ia.cr/2022/515}},
+}
+```
+
+[The paper](https://eprint.iacr.org/2022/515) consider the [initial commit (0d58320559)]( https://github.com/antoniocgj/MOSFHET/tree/0d5832055900d1376f7dadbbf5093b911e96a7fc) of the library in this repository. 
 
 ## License
 
