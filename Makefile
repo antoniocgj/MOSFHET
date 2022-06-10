@@ -18,8 +18,8 @@ else ifeq ($(FFT_LIB),spqlios_avx512)
 	FLAGS += -DUSE_SPQLIOS -DAVX512_OPT
 	SRC += ./fft/spqlios/spqlios-fft-avx512.s ./fft/spqlios/spqlios-ifft-avx512.s ./fft/spqlios/spqlios-fft-impl-avx512.c ./fft/spqlios/fft_processor_spqlios.c
 else
-	FLAGS += -PORTABLE_BUILD
-  SRC += ./fft/ffnt/ffnt.c
+	FLAGS += -DPORTABLE_BUILD
+ 	SRC += ./fft/ffnt/ffnt.c
 endif
 
 all: mosfhet
