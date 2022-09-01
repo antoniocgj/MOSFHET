@@ -1,4 +1,7 @@
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -6,6 +9,7 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifndef PORTABLE_BUILD
 #include <x86intrin.h>
@@ -14,10 +18,14 @@
 
 // Optimizations
 // key-switching on-the-fly random
-#define USE_COMPRESSED_TRLWE
 
 /* Torus */
+#ifdef TORUS32
+typedef uint32_t Torus;
+#undef USE_COMPRESSED_TRLWE
+#else
 typedef uint64_t Torus;
+#endif
 typedef int16_t Binary;
 
 /* Polynomials */
@@ -36,6 +44,9 @@ typedef struct {
   int N;
 } * BinaryPolynomial;
 
+typedef TorusPolynomial IntPolynomial;
+typedef Torus Integer;
+
 /* TLWE */
 typedef struct {
   Torus * a, b;
@@ -43,7 +54,7 @@ typedef struct {
 } * TLWE;
 
 typedef struct {
-  Binary * s;
+  Integer * s;
   int n;
   double sigma;
 } * TLWE_Key;
@@ -65,7 +76,7 @@ typedef struct {
 } * TRLWE_DFT;
 
 typedef struct {
-  BinaryPolynomial * s;
+  IntPolynomial * s;
   int k;
   double sigma;
 } * TRLWE_Key;
@@ -115,6 +126,13 @@ typedef struct {
   int n, k, N, Bg_bit, l, unfolding;
 } * Bootstrap_Key;
 
+typedef struct {
+  TRGSW_DFT * s;
+  TRGSW * su;
+  TRLWE_KS_Key * ak;
+  int n, k, N, Bg_bit, l, unfolding;
+} * Bootstrap_GA_Key;
+
 /* Functions */
 
 /* Torus */
@@ -122,6 +140,13 @@ double torus2double(Torus x);
 Torus double2torus(double x);
 uint64_t torus2int(Torus x, int log_scale);
 Torus int2torus(uint64_t x, int log_scale);
+
+/* util */
+uint16_t inverse_mod_2N(uint16_t x, uint16_t N);
+
+
+
+/* Functions */
 
 /* Polynomials */ 
 TorusPolynomial polynomial_new_torus_polynomial(int N);
@@ -159,7 +184,8 @@ void polynomial_decompose_i(TorusPolynomial out, TorusPolynomial in, int Bg_bit,
 
 /* TLWE */
 TLWE_Key tlwe_alloc_key(int n, double sigma);
-TLWE_Key tlwe_new_key(int n, double sigma);
+TLWE_Key tlwe_new_binary_key(int n, double sigma);
+TLWE_Key tlwe_new_bounded_key(int n, uint64_t bound, double sigma);
 TLWE_Key tlwe_load_new_key(FILE * fd);
 TLWE_KS_Key tlwe_load_new_KS_key(FILE * fd);
 void tlwe_save_KS_key(FILE * fd, TLWE_KS_Key key);
@@ -191,7 +217,8 @@ void tlwe_mul(TLWE out, TLWE in1, TLWE in2, int delta, Generic_KS_Key ksk, TRLWE
 
 /* TRLWE */
 TRLWE_Key trlwe_alloc_key(int N, int k, double sigma);
-TRLWE_Key trlwe_new_key(int N, int k, double sigma);
+TRLWE_Key trlwe_new_binary_key(int N, int k, double sigma);
+TRLWE_Key trlwe_new_bounded_key(int N, int k, uint64_t bound, double sigma);
 TRLWE_Key trlwe_load_new_key(FILE * fd);
 void trlwe_save_key(FILE * fd, TRLWE_Key key);
 TRLWE trlwe_alloc_new_sample(int k, int N);
@@ -239,6 +266,7 @@ TRLWE_DFT trlwe_new_noiseless_trivial_DFT_sample(DFT_Polynomial m, int k, int N)
 void trlwe_tensor_prod(TRLWE out, TRLWE in1, TRLWE in2, int delta, TRLWE_KS_Key rl_key);
 void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE_KS_Key rl_key);
 void trlwe_torus_packing_many_LUT(TRLWE out, Torus * in, int lut_size, int n_luts);
+void trlwe_eval_automorphism(TRLWE out, TRLWE in, uint64_t gen, TRLWE_KS_Key ks_key);
 
 /* TRLWE Compressed */
 TRLWE trlwe_new_compressed_sample(TorusPolynomial m, TRLWE_Key key);
@@ -246,6 +274,12 @@ TRLWE trlwe_load_new_compressed_sample(FILE * fd, int k, int N);
 void trlwe_load_compressed_sample(FILE * fd, TRLWE c);
 void trlwe_save_compressed_sample(FILE * fd, TRLWE c);
 void trlwe_compressed_subto(TRLWE out, TRLWE in);
+#ifdef USE_VAES
+void aes_setup_rnd_seed();
+void setup_aes_key(__m128i * seed);
+void trlwe_mul_by_xai_addto_comp_vaes(TRLWE out, TRLWE in, int a);
+void trgsw_mul_by_xai_addto_comp_vaes(TRGSW out, TRGSW in, int a);
+#endif
 
 /* TRGSW */
 TRGSW_Key trgsw_new_key(TRLWE_Key trlwe_key, int l, int Bg_bit);
@@ -320,6 +354,10 @@ void free_trlwe_generic_ks_key(Generic_KS_Key key);
 Generic_KS_Key trlwe_new_packing1_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit);
 TRLWE_KS_Key * trlwe_new_packing1_KS_key_CDKS21(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit);
 void trlwe_packing1_keyswitch_CDKS21(TRLWE out, TLWE in, TRLWE_KS_Key * ks_key);
+TRLWE_KS_Key * trlwe_new_automorphism_KS_keyset(TRLWE_Key key, bool skip_even, int t, int base_bit);
+TRLWE_KS_Key trlwe_new_full_packing_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit);
+void trlwe_full_packing_keyswitch(TRLWE out, TLWE * in, uint64_t size, TRLWE_KS_Key ks_key);
+
 
 
 /* Bootstrap */
@@ -353,3 +391,18 @@ double generate_normal_random(double sigma);
 void generate_torus_normal_random_array(Torus * out, double sigma, int N);
 void * safe_malloc(size_t size);
 void * safe_aligned_malloc(size_t size);
+
+// debug 
+uint64_t _debug_trgsw_decrypt_exp_sample(TRGSW c, TRGSW_Key key);
+uint64_t _debug_trgsw_decrypt_exp_DFT_sample(TRGSW_DFT c, TRGSW_Key key);
+
+/* Bootstrap using Galois Automorphisms */
+Bootstrap_GA_Key new_bootstrap_key_ga(TRGSW_Key out_key, TLWE_Key in_key);
+void blind_rotate_ga(TRLWE tv, Torus * a, TRGSW_DFT * s, TRLWE_KS_Key * ak, int size);
+void functional_bootstrap_wo_extract_ga(TRLWE out, TRLWE tv, TLWE in, Bootstrap_GA_Key key, int torus_base);
+void functional_bootstrap_ga(TLWE out, TRLWE tv, TLWE in, Bootstrap_GA_Key key, int torus_base);
+void free_bootstrap_key_ga(Bootstrap_GA_Key key);
+
+#ifdef __cplusplus
+}
+#endif

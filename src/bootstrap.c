@@ -51,9 +51,11 @@ Bootstrap_Key new_bootstrap_key(TRGSW_Key out_key, TLWE_Key in_key, int unfoldin
 void free_bootstrap_key(Bootstrap_Key key){
   if(key->unfolding == 1){
     for (size_t i = 0; i < key->n; i++) free_trgsw(key->s[i]);
+    free(key->s);
   }else{
     const int key_size = key->n*(1 << key->unfolding)/key->unfolding;
     for (size_t i = 0; i < key_size; i++) free_trgsw(key->su[i]);
+    free(key->su);
   }
   free(key);
 }

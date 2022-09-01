@@ -1,0 +1,42 @@
+CC = gcc-10
+FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm
+DEBUG_FLAGS = -O0 -g $(FLAGS)
+INCLUDE_DIRS = include/
+OPT_FLAGS = -O3 -fwhole-program -flto -DNDEBUG $(FLAGS)
+LIB_FLAGS = -O3 -DNDEBUG $(FLAGS) -flto -fuse-ld=gold -fuse-linker-plugin
+SRC = keyswitch.c bootstrap.c bootstrap_ga.c tlwe.c trlwe.c  trgsw.c misc.c	polynomial.c register.c sha3/fips202.c fft/karatsuba.c
+LIBS = 
+LD_LIBS =
+BUILD_LIBS = 
+TEST_FLAGS = $(OPT_FLAGS)
+FFT_LIB = spqlios_avx512
+A_PRGN = xoshiro
+
+ifeq ($(A_PRGN),shake)
+	FLAGS += -DUSE_SHAKE -DUSE_COMPRESSED_TRLWE
+	SRC += trlwe_compressed.c
+else ifeq ($(A_PRGN),vaes)
+	SRC += trlwe_compressed_vaes.c
+	FLAGS += -DUSE_VAES -DUSE_COMPRESSED_TRLWE
+else ifeq ($(A_PRGN),xoshiro)
+	SRC += trlwe_compressed.c
+	FLAGS += -DUSE_COMPRESSED_TRLWE
+endif
+
+ifdef TORUS32
+ FLAGS += -DTORUS32
+endif
+
+ifeq ($(FFT_LIB),spqlios)
+	FLAGS += -DUSE_SPQLIOS
+	SRC += ./fft/spqlios/spqlios-fft-fma.s ./fft/spqlios/spqlios-ifft-fma.s ./fft/spqlios/spqlios-fft-impl.c ./fft/spqlios/fft_processor_spqlios.c
+else ifeq ($(FFT_LIB),spqlios_avx512)
+	FLAGS += -DUSE_SPQLIOS -DAVX512_OPT
+	SRC += ./fft/spqlios/spqlios-fft-avx512.s ./fft/spqlios/spqlios-ifft-avx512.s ./fft/spqlios/spqlios-fft-impl-avx512.c ./fft/spqlios/fft_processor_spqlios.c
+else ifeq ($(FFT_LIB),ffnt_opt)
+	FLAGS += -DFMA_OPT
+  SRC += ./fft/ffnt/ffnt.c
+else
+	FLAGS += -DPORTABLE_BUILD
+  SRC += ./fft/ffnt/ffnt.c
+endif

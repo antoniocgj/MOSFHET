@@ -89,8 +89,8 @@ void free_trlwe(void * p_v){
   for (size_t i = 0; i < p->k; i++){
     free_polynomial(p->a[i]);
   }
+  free_polynomial(p->b);
   free(p->a);
-  free(p->b);
   free(p);
 }
 
@@ -106,22 +106,28 @@ TRLWE_Key trlwe_alloc_key(int N, int k, double sigma){
   res = (TRLWE_Key) safe_malloc(sizeof(*res));
   res->k = k;
   res->sigma = sigma;
-  res->s = (BinaryPolynomial*) safe_malloc(k*sizeof(BinaryPolynomial));
+  res->s = (IntPolynomial*) safe_malloc(k*sizeof(IntPolynomial));
   for (size_t i = 0; i < k; i++){
-    res->s[i] = polynomial_new_binary_polynomial(N);  
+    res->s[i] = polynomial_new_torus_polynomial(N);  
   }
   return res;
 }
 
-TRLWE_Key trlwe_new_key(int N, int k, double sigma){
+// bound must be a power of 2
+TRLWE_Key trlwe_new_bounded_key(int N, int k, uint64_t bound, double sigma){
   TRLWE_Key res = trlwe_alloc_key(N, k, sigma);
   for (size_t i = 0; i < k; i++){
-    generate_random_bytes(N*sizeof(Binary), (uint8_t *) res->s[i]->coeffs);
+    generate_random_bytes(N*sizeof(Torus), (uint8_t *) res->s[i]->coeffs);
     for (size_t j = 0; j < N; j++){
-      res->s[i]->coeffs[j] &= 1;
+      res->s[i]->coeffs[j] &= (bound - 1);
+      res->s[i]->coeffs[j] -= (bound >> 1) - 1;
     }    
   }
   return res;
+}
+
+TRLWE_Key trlwe_new_binary_key(int N, int k, double sigma){
+  return trlwe_new_bounded_key(N, k, 2, sigma);
 }
 
 void trlwe_save_key(FILE * fd, TRLWE_Key key){
@@ -129,7 +135,7 @@ void trlwe_save_key(FILE * fd, TRLWE_Key key){
   fwrite(&key->s[0]->N, sizeof(int), 1, fd);
   fwrite(&key->sigma, sizeof(double), 1, fd);
   for (size_t i = 0; i < key->k; i++){
-    fwrite(key->s[i]->coeffs, sizeof(Binary), key->s[0]->N, fd);
+    fwrite(key->s[i]->coeffs, sizeof(Torus), key->s[0]->N, fd);
   }
 }
 
@@ -141,7 +147,7 @@ TRLWE_Key trlwe_load_new_key(FILE * fd){
   fread(&sigma, sizeof(double), 1, fd);
   TRLWE_Key key = trlwe_alloc_key(N, k, sigma);
   for (size_t i = 0; i < key->k; i++){
-    fread(key->s[i]->coeffs, sizeof(Binary), key->s[0]->N, fd);
+    fread(key->s[i]->coeffs, sizeof(Torus), key->s[0]->N, fd);
   }
   return key;
 }
@@ -194,11 +200,11 @@ void trlwe_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key){
 
   // internal product
   for (size_t i = 0; i < key->k; i++){
-    polynomial_naive_mul_addto_torus_binary(out->b, out->a[i], key->s[i]);
+    polynomial_naive_mul_addto_torus(out->b, out->a[i], key->s[i]);
   }
 
   if(m != NULL){
-    for (size_t i = 0; i < N; i++){
+    for (size_t i = 0; i < m->N; i++){
       out->b->coeffs[i] += m->coeffs[i];
     }
   }
@@ -214,7 +220,7 @@ void trlwe_phase(TorusPolynomial out, TRLWE in, TRLWE_Key key){
   const int N = key->s[0]->N, k = in->k, byte_size = sizeof(Torus) * N;
   memset(out->coeffs, 0, byte_size);
   for (size_t i = 0; i < k; i++){
-    polynomial_naive_mul_addto_torus_binary(out, in->a[i], key->s[i]);
+    polynomial_naive_mul_addto_torus(out, in->a[i], key->s[i]);
   }
   polynomial_sub_torus_polynomials(out, in->b, out);
 }
@@ -424,14 +430,15 @@ void trlwe_decompose(TorusPolynomial * out, TRLWE in, int Bg_bit, int l){
   const int k = in->k, N = in->b->N;
   const uint64_t half_Bg = (1UL << (Bg_bit - 1));
   const uint64_t h_mask = (1UL << Bg_bit) - 1;
+  const uint64_t word_size = sizeof(Torus)*8;
 
   uint64_t offset = 0;
   for (size_t i = 0; i < l; i++){
-    offset += (1UL << (64 - i * Bg_bit - 1));
+    offset += (1UL << (word_size - i * Bg_bit - 1));
   }
   
   for (size_t i = 0; i < l; i++) {
-    const uint64_t h_bit = 64 - (i + 1) * Bg_bit;
+    const uint64_t h_bit = word_size - (i + 1) * Bg_bit;
     for (size_t j = 0; j < k; j++){
       for (size_t c = 0; c < N; c++){
         const uint64_t coeff_off = in->a[j]->coeffs[c] + offset;
@@ -531,4 +538,12 @@ void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE
   free_polynomial(A2);
   free_polynomial(B1);
   free_polynomial(B2);
+}
+
+
+// EvalAuto
+void trlwe_eval_automorphism(TRLWE out, TRLWE in, uint64_t gen, TRLWE_KS_Key ks_key){
+  polynomial_permute(out->a[0], in->a[0], gen);
+  polynomial_permute(out->b, in->b, gen);
+  trlwe_keyswitch(out, out, ks_key);
 }

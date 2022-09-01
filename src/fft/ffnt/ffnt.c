@@ -806,6 +806,17 @@ FFT_Processor_FFNT new_FFT_Processor_FFNT(int N){
     return res;
 }
 
+void execute_reverse_torus32(double * res, const uint32_t * a, FFT_Processor_FFNT proc){
+    const int N = proc->N;
+    int32_t * aa = (int32_t *) a;
+    for (size_t i = 0; i < N; i++){
+        res[i] = ((double) aa[i]);
+    }
+    ffnt_transform(proc->ffnt_2n_tables, proc->fft_n_2_tables, res, proc->fpi);
+    memcpy(&res[N/2], proc->fpi, sizeof(double) * N/2);
+}
+
+
 void execute_reverse_torus64(double * res, const uint64_t * a, FFT_Processor_FFNT proc){
     const int N = proc->N;
     int64_t * aa = (int64_t *) a;
@@ -817,6 +828,21 @@ void execute_reverse_torus64(double * res, const uint64_t * a, FFT_Processor_FFN
     // for (size_t i = 0; i < N/2; i++){
     //     res[i + N/2] = proc->fpi[i];
     // }
+}
+
+void execute_direct_torus32(uint64_t * res, const double * a, FFT_Processor_FFNT proc){
+    const int N = proc->N;
+    for (size_t i = 0; i < N/2; i++){
+        proc->fpr[i] = a[i]; 
+        proc->fpi[i] = a[i + N/2];
+    }
+    memset(&proc->fpr[N/2], 0, sizeof(double)*N/2);
+    memset(&proc->fpi[N/2], 0, sizeof(double)*N/2);
+    // for (size_t i = N/2; i < N; i++){
+    //     proc->fpr[i] = 0.; proc->fpi[i] = 0.;
+    // }
+    iffnt_transform(proc->ffnt_2n_tables, proc->ifft_n_2_tables, proc->fpr, proc->fpi);
+    for (int32_t i = 0; i < proc->N; i++) res[i] = (uint32_t)((int64_t) proc->fpr[i]);
 }
 
 void execute_direct_torus64(uint64_t * res, const double * a, FFT_Processor_FFNT proc){

@@ -3,7 +3,7 @@
 TRLWE_KS_Key trlwe_new_RL_key(TRLWE_Key key, int t, int base_bit){
   assert(key->k == 1);
   TRLWE_Key key2 = trlwe_alloc_key(key->s[0]->N, key->k, key->sigma);
-  polynomial_naive_mul_binary(key2->s[0], key->s[0], key->s[0]);
+  polynomial_naive_mul_torus(key2->s[0], key->s[0], key->s[0]);
   TRLWE_KS_Key res = trlwe_new_KS_key(key, key2, t, base_bit);
   free_trlwe_key(key2);
   return res;
@@ -36,6 +36,16 @@ TRLWE_KS_Key trlwe_new_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t, int ba
   return res;
 }
 
+TRLWE_KS_Key trlwe_new_full_packing_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
+  TRLWE_Key tmp = trlwe_alloc_key(1, in_key->n, in_key->sigma); // N=1, k = n 
+  for (size_t i = 0; i < in_key->n; i++){
+    tmp->s[i]->coeffs[0] = in_key->s[i];
+  }
+  TRLWE_KS_Key res = trlwe_new_KS_key(out_key, tmp, t, base_bit);
+  free_trlwe_key(tmp);
+  return res;
+}
+
 void free_trlwe_ks_key(TRLWE_KS_Key key){
   const int t = key->t, k = key->k;
   for (size_t i = 0; i < k; i++){
@@ -54,7 +64,7 @@ void trlwe_keyswitch(TRLWE out, TRLWE in, TRLWE_KS_Key ks_key){
   assert(out->b->N == ks_key->s[0][0]->b->N);
   
 
-  TorusPolynomial * dec_in_a = polynomial_new_array_of_torus_polynomials(N, ks_key->t);
+  TorusPolynomial dec_in_a = polynomial_new_torus_polynomial(N);
   DFT_Polynomial tmp = polynomial_new_DFT_polynomial(N);
   TRLWE_DFT acc = trlwe_alloc_new_DFT_sample(out->k, N);
   TRLWE as = trlwe_alloc_new_sample(out->k, N);
@@ -65,9 +75,9 @@ void trlwe_keyswitch(TRLWE out, TRLWE in, TRLWE_KS_Key ks_key){
   for (size_t j = 0; j < N; j++) acc->b->coeffs[j] = 0.;
   
   for (size_t i = 0; i < in->k; i++){
-    polynomial_decompose(dec_in_a, in->a[i], ks_key->base_bit, ks_key->t);
     for (size_t j = 0; j < ks_key->t; j++){
-      polynomial_torus_to_DFT(tmp, dec_in_a[j]);
+      polynomial_decompose_i(dec_in_a, in->a[i], ks_key->base_bit, ks_key->t, j);
+      polynomial_torus_to_DFT(tmp, dec_in_a);
       trlwe_DFT_mul_addto_by_polynomial(acc, ks_key->s[i][j], tmp);   
     }
   }
@@ -78,7 +88,44 @@ void trlwe_keyswitch(TRLWE out, TRLWE in, TRLWE_KS_Key ks_key){
   free_trlwe(acc);
   free_trlwe(as);
   free_polynomial(tmp);
-  free_array_of_polynomials((void ** )dec_in_a, ks_key->t);
+  free_polynomial(dec_in_a);
+}
+
+void trlwe_full_packing_keyswitch(TRLWE out, TLWE * in, uint64_t size, TRLWE_KS_Key ks_key){
+  const int N = out->b->N;
+  assert(out->k == ks_key->s[0][0]->k);
+  assert(out->b->N == ks_key->s[0][0]->b->N);
+
+  TorusPolynomial dec_in_a = polynomial_new_torus_polynomial(N);
+  TorusPolynomial a_i = polynomial_new_torus_polynomial(N);
+  DFT_Polynomial tmp = polynomial_new_DFT_polynomial(N);
+  TRLWE_DFT acc = trlwe_alloc_new_DFT_sample(out->k, N);
+
+  memset(a_i->coeffs, 0, sizeof(Torus)*N);
+  for (size_t i = 0; i < out->k; i++){
+    memset(acc->a[i]->coeffs, 0, sizeof(Torus)*N);
+  }
+  memset(acc->b->coeffs, 0, sizeof(Torus)*N);
+  
+  for (size_t i = 0; i < in[0]->n; i++){
+    for (size_t j = 0; j < size; j++){
+      a_i->coeffs[j] = in[j]->a[i];
+    }
+    for (size_t j = 0; j < ks_key->t; j++){
+      polynomial_decompose_i(dec_in_a, a_i, ks_key->base_bit, ks_key->t, j);
+      polynomial_torus_to_DFT(tmp, dec_in_a);
+      trlwe_DFT_mul_addto_by_polynomial(acc, ks_key->s[i][j], tmp);   
+    }
+  }
+  trlwe_from_DFT(out, acc);
+  trlwe_negate(out, out);
+  for (size_t j = 0; j < size; j++){
+    out->b->coeffs[j] += in[j]->b;
+  }
+  
+  free_trlwe(acc);
+  free_polynomial(tmp);
+  free_polynomial(dec_in_a);
 }
 
 
@@ -298,6 +345,19 @@ TRLWE_KS_Key * trlwe_new_packing1_KS_key_CDKS21(TRLWE_Key out_key, TLWE_Key in_k
   free_trlwe_key(key2);
   free_polynomial(tmp);
   free_polynomial(tmp2);
+  return res;
+}
+
+TRLWE_KS_Key * trlwe_new_automorphism_KS_keyset(TRLWE_Key key, bool skip_even, int t, int base_bit){
+  const int N = key->s[0]->N;
+  TRLWE_Key key2 = trlwe_alloc_key(N, 1, key->sigma);
+  TRLWE_KS_Key * res = (TRLWE_KS_Key * ) safe_malloc(sizeof(TRLWE_KS_Key) * N);
+  for (size_t i = 0, j = 0; i < (N<<1); i++){
+    if(skip_even && !(i&1)) continue;
+    polynomial_permute(key2->s[0], key->s[0], i);
+    res[j++] = trlwe_new_KS_key(key, key2, t, base_bit);
+  }  
+  free_trlwe_key(key2);
   return res;
 }
 

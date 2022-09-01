@@ -1,6 +1,6 @@
 # MOSFHET: Optimized Software for FHE over the Torus
 
-MOSFHET is a pure-C highly-optimized implementation of [TFHE](https://github.com/tfhe/tfhe/). It includes the main techniques proposed so far for improving performance or error rate in TFHE. The library is fully portable with optional optimizations for Intel AVX2, FMA, and AVX-512. 
+MOSFHET is a research-oriented highly-optimized implementation of [TFHE](https://github.com/tfhe/tfhe/). It includes the main techniques proposed so far for improving performance or error rate in TFHE. The library is fully portable with optional optimizations for Intel AVX2, FMA, AVX-512, and VAES. 
 
 ## Implemented Techniques
 
@@ -21,12 +21,14 @@ MOSFHET is a pure-C highly-optimized implementation of [TFHE](https://github.com
 - Public Key compression using randomness seed [[14]](10.1007/s00145-019-09319-x). 
 
 - BFV-like multiplication [[3]](https://link.springer.com/chapter/10.1007/978-3-030-92078-4_23).
+  
+- Bootstrap using Galois Automorphism [[15]](https://eprint.iacr.org/2022/198.pdf), adapted to TFHE and optimized for an all-odd case. 
 
-For more details, see our [paper](https://eprint.iacr.org/2022/515). 
+For more details, see our [paper](https://eprint.iacr.org/2022/515). It considers the [initial commit (0d58320559)]( https://github.com/antoniocgj/MOSFHET/tree/0d5832055900d1376f7dadbbf5093b911e96a7fc) of the library in this repository. 
 
 ## Build
 
-By default, we use the AVX-512 version of SPQLIOS for fast polynomial arithmetic. It requires [AVX-512 support](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512). You can use the option `FFT_LIB` to specify other libraries. 
+By default, we use the AVX-512 version of SPQLIOS for fast polynomial arithmetic. It requires [AVX-512 support](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512). You can use the option `FFT_LIB` to specify other libraries, and the option `A_PRGN` to choose the PRNG used to generate/expand `a` (options are: `shake`, `vaes`, `xoshiro`, and `no`).
 
 Default compilation (using AVX-512 SPQLIOS):
 
@@ -40,23 +42,23 @@ FFNT library (pure-C, fully portable):
 
 > ```make FFT_LIB=ffnt```
 
-For other compiling options, see the [Makefile](Makefile). 
+For other compiling options, see the [Makefile](Makefile) and [Makefile.def](Makefile.def). 
 
 ## Running
 
 There are two main ways of using MOSFHET:
-1. The most efficient is to compile your code and MOSFHET together. We do that for our [benchmark.c](test/benchmark.c) and [tests.c](test/tests.c) files. See the `test/benchmark` rule in the [Makefile](Makefile#L48). 
-2. Dynamic Link. After compiling MOSFHET as a shared library, you can dynamically link it with your code. See [MOSFHET_MCA](https://github.com/antoniocgj/MOSFHET_MCA) for an example. 
+1. The most efficient is to compile your code and MOSFHET together. We do that for our [benchmark.c](test/benchmark.c) and [tests.c](test/tests.c) files, and for the examples in the [applications folder](applications/). See the [Makefile](applications/template/Makefile) in our [basic template](applications/template/) for building an application. 
+2. Dynamic or Static Link. After compiling MOSFHET as a library, you can dynamically/statically link it with your code. See [MOSFHET_MCA](https://github.com/antoniocgj/MOSFHET_MCA) for an example. Please note that this should add significant performance overhead (as function inlining is  disabled for almost the entire library.)
 
 ## Examples
 
-For examples on how to use MOSFHET, see our [unit tests file](test/tests.c) and [MOSFHET_MCA](https://github.com/antoniocgj/MOSFHET_MCA). 
+For examples on how to use MOSFHET, see our [unit tests file](test/tests.c) and the [applications folder](applications/). 
 
 ## Unit tests and Benchmark
 
 We provide a set of [unit tests](test/tests.c) and a simple [benchmark](test/benchmark.c) file for the library. They use parameters hard-coded at the beginning of each file. The default parameters are high memory consuming (they are the same as TFHEpp Level 2). The parameters can be reduced in exchange for performance (especially for the Key Switching) or error rate.
 
-To run the unit tests:
+To run the unit tests (It is expected for many of the tests to fail depending on the parameters):
 
 > `make test -B`
 > 
@@ -87,7 +89,7 @@ To run the benchmark:
 }
 ```
 
-[The paper](https://eprint.iacr.org/2022/515) consider the [initial commit (0d58320559)]( https://github.com/antoniocgj/MOSFHET/tree/0d5832055900d1376f7dadbbf5093b911e96a7fc) of the library in this repository. 
+[The paper](https://eprint.iacr.org/2022/515) considers the [initial commit (0d58320559)]( https://github.com/antoniocgj/MOSFHET/tree/0d5832055900d1376f7dadbbf5093b911e96a7fc) of the library in this repository. 
 
 ## License
 

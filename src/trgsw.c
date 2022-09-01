@@ -121,7 +121,7 @@ void trgsw_noiseless_trivial_sample(TRGSW out, Torus m, int l, int Bg_bit, int k
   }
   
   for (size_t i = 0; i < l; i++) {
-    const uint64_t h = 1UL << (64 - (i + 1) * Bg_bit);
+    const uint64_t h = 1UL << (sizeof(Torus)*8 - (i + 1) * Bg_bit);
     for (size_t j = 0; j < k; j++){
       out->samples[j*l + i]->a[j]->coeffs[0] += m * h;
     }
@@ -137,13 +137,15 @@ TRGSW trgsw_new_noiseless_trivial_sample(Torus m, int l, int Bg_bit, int k, int 
 }
 
 void trgsw_monomial_sample(TRGSW out, int64_t m, int e, TRGSW_Key key){
-  const int l = key->l, k = key->trlwe_key->k, Bg_bit = key->Bg_bit;
+  const int l = key->l, k = key->trlwe_key->k, Bg_bit = key->Bg_bit, N = key->trlwe_key->s[0]->N;
+  if(e&N) m *= -1;
+  e &= (N - 1);
   for (size_t i = 0; i < l * (k + 1); i++){
     trlwe_sample(out->samples[i], NULL, key->trlwe_key);
   }
 
   for (size_t i = 0; i < l; i++) {
-    const uint64_t h = 1UL << (64 - (i + 1) * Bg_bit);
+    const Torus h = 1UL << (sizeof(Torus)*8 - (i + 1) * Bg_bit);
     for (size_t j = 0; j < k; j++){
       out->samples[j*l + i]->a[j]->coeffs[e] += m * h;
     }
@@ -164,7 +166,8 @@ TRGSW trgsw_new_sample(Torus m, TRGSW_Key key){
 }
 
 uint64_t _debug_trgsw_decrypt_exp_sample(TRGSW c, TRGSW_Key key){
-  const uint64_t N = key->trlwe_key->s[0]->N, l = key->l, delta = (1UL << (63 - key->Bg_bit));
+  const uint64_t N = key->trlwe_key->s[0]->N, l = key->l;
+  const Torus delta = (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit));
   TorusPolynomial poly = polynomial_new_torus_polynomial(N);
   trlwe_phase(poly, c->samples[l], key->trlwe_key);
   int resIdx = -1;
@@ -199,7 +202,7 @@ uint64_t _debug_trgsw_decrypt_exp_DFT_sample(TRGSW_DFT c, TRGSW_Key key){
   trlwe_phase(poly, tmp, key->trlwe_key);
   int resIdx = -1;
   for (int j = 0; j < N; j++){
-    if((poly->coeffs[j] < - (1UL << (63 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (63 - key->Bg_bit)))){
+    if((poly->coeffs[j] < - (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit)))){
       if(resIdx != -1){
         // printf("[TRGSW Exp Decryption error] Current: %lf*x^%d - Previous: %lf*x^%d\n", torus2double(poly->coeffs[j]), j, torus2double(poly->coeffs[resIdx]), resIdx);
         return -1;

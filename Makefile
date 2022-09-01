@@ -1,28 +1,14 @@
-CC = gcc-10
-FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm -I./include/
-DEBUG_FLAGS = -O0 -g $(FLAGS)
-OPT_FLAGS = -O3 -fwhole-program -flto -DNDEBUG $(FLAGS)
-LIB_FLAGS = -O3 -DNDEBUG $(FLAGS) -flto -fuse-ld=gold -fuse-linker-plugin
-LIBS = 
-LD_LIBS =
-BUILD_LIBS = 
-TEST_FLAGS = $(OPT_FLAGS)
-FFT_LIB = spqlios_avx512
-
-SRC = keyswitch.c bootstrap.c tlwe.c trlwe.c trlwe_compressed.c trgsw.c misc.c	polynomial.c register.c sha3/fips202.c fft/karatsuba.c
-
-ifeq ($(FFT_LIB),spqlios)
-	FLAGS += -DUSE_SPQLIOS
-	SRC += ./fft/spqlios/spqlios-fft-fma.s ./fft/spqlios/spqlios-ifft-fma.s ./fft/spqlios/spqlios-fft-impl.c ./fft/spqlios/fft_processor_spqlios.c
-else ifeq ($(FFT_LIB),spqlios_avx512)
-	FLAGS += -DUSE_SPQLIOS -DAVX512_OPT
-	SRC += ./fft/spqlios/spqlios-fft-avx512.s ./fft/spqlios/spqlios-ifft-avx512.s ./fft/spqlios/spqlios-fft-impl-avx512.c ./fft/spqlios/fft_processor_spqlios.c
-else
-	FLAGS += -DPORTABLE_BUILD
- 	SRC += ./fft/ffnt/ffnt.c
-endif
+include Makefile.def
+INCLUDE_FLAGS = $(addprefix -I, $(INCLUDE_DIRS))
+FLAGS += $(INCLUDE_FLAGS)
 
 all: mosfhet
+
+static: lib objects
+	ar rcs lib/libmosfhet.a *.o && rm *.o
+
+objects: $(addprefix src/, $(SRC))
+	$(CC) -g -c $^ $(LIB_FLAGS) $(LIBS)
 
 test: test/test
 	./test/test
@@ -55,4 +41,4 @@ test/test_fft: $(addprefix src/, $(SRC)) test/benchmark_arith.c
 	$(CC) -g -o test/test_fft $^ $(TEST_FLAGS) $(LIBS) 
 
 clean: 
-	rm --f test/test test/benchmark test/test_fft lib/libmosfhet.so
+	rm --f test/test test/benchmark test/test_fft lib/libmosfhet.so lib/libmosfhet.a

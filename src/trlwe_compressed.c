@@ -97,7 +97,7 @@ void trlwe_compressed_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key){
   #else
     for (size_t j = 0; j < N; j+=4) xoroshiro128pp_vnext(&p_tmp->coeffs[j], seed);
   #endif
-    polynomial_naive_mul_addto_torus_binary(out->b, p_tmp, key->s[i]);
+    polynomial_naive_mul_addto_torus(out->b, p_tmp, key->s[i]);
   }
 
   if(m != NULL){

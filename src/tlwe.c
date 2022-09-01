@@ -57,23 +57,30 @@ TLWE_Key tlwe_alloc_key(int n, double sigma){
   res = (TLWE_Key) safe_malloc(sizeof(*res));
   res->n = n;
   res->sigma = sigma;
-  res->s = (Binary *) safe_malloc(sizeof(Binary)*n);
+  res->s = (Integer *) safe_malloc(sizeof(Integer)*n);
   return res;
 }
 
-TLWE_Key tlwe_new_key(int n, double sigma){
+// bound must be a power of 2
+TLWE_Key tlwe_new_bounded_key(int n, uint64_t bound, double sigma){
   TLWE_Key res = tlwe_alloc_key(n, sigma);
-  generate_random_bytes(n*sizeof(Binary), (uint8_t *) res->s);
+  generate_random_bytes(n*sizeof(Integer), (uint8_t *) res->s);
   for (size_t i = 0; i < n; i++){
-    res->s[i] &= 1;
+    res->s[i] &= (bound - 1);
+    res->s[i] -= (bound >> 1) - 1;
   }
   return res;
 }
 
+TLWE_Key tlwe_new_binary_key(int n, double sigma){
+  return tlwe_new_bounded_key(n, 2, sigma);
+}
+
+
 void tlwe_save_key(FILE * fd, TLWE_Key key){
   fwrite(&key->n, sizeof(int), 1, fd);
   fwrite(&key->sigma, sizeof(double), 1, fd);
-  fwrite(key->s, sizeof(Binary), key->n, fd);
+  fwrite(key->s, sizeof(Torus), key->n, fd);
 }
 
 TLWE_Key tlwe_load_new_key(FILE * fd){
@@ -82,7 +89,7 @@ TLWE_Key tlwe_load_new_key(FILE * fd){
   fread(&n, sizeof(int), 1, fd);
   fread(&sigma, sizeof(double), 1, fd);
   TLWE_Key key = tlwe_alloc_key(n, sigma);
-  fread(key->s, sizeof(Binary), key->n, fd);
+  fread(key->s, sizeof(Torus), key->n, fd);
   return key;
 }
 
