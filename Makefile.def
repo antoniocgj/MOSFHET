@@ -3,7 +3,7 @@ FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=
 DEBUG_FLAGS = -O0 -g $(FLAGS)
 INCLUDE_DIRS = include/
 OPT_FLAGS = -O3 -fwhole-program -flto -DNDEBUG $(FLAGS)
-LIB_FLAGS = -O3 -DNDEBUG $(FLAGS) -flto -fuse-ld=gold -fuse-linker-plugin
+LIB_FLAGS = -O3 -DNDEBUG $(FLAGS)
 SRC = keyswitch.c bootstrap.c bootstrap_ga.c tlwe.c trlwe.c  trgsw.c misc.c	polynomial.c register.c sha3/fips202.c fft/karatsuba.c
 LIBS = 
 LD_LIBS =

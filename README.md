@@ -2,6 +2,8 @@
 
 MOSFHET is a research-oriented highly-optimized implementation of [TFHE](https://github.com/tfhe/tfhe/). It includes the main techniques proposed so far for improving performance or error rate in TFHE. The library is fully portable with optional optimizations for Intel AVX2, FMA, AVX-512, and VAES. 
 
+We are slowly adding more comments to the code and more examples to the [applications folder](applications/). For any questions or suggestions, please contact me at <antonio.guimaraes@ic.unicamp.br>.
+
 ## Implemented Techniques
 
 - The Functional [[1]](https://link.springer.com/chapter/10.1007/978-3-030-20951-3_20) or Programmable [[2]](https://link.springer.com/chapter/10.1007/978-3-030-78086-9_1) Bootstrap and its improved version [[3]](https://link.springer.com/chapter/10.1007/978-3-030-92078-4_23).

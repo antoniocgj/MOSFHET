@@ -342,6 +342,7 @@ void polynomial_full_mul_with_scale(TorusPolynomial out, TorusPolynomial in1, To
 // Src: https://github.com/tuneinsight/lattigo/blob/master/ring/ring_automorphism.go, Apache 2 License
 void polynomial_permute(TorusPolynomial restrict out, TorusPolynomial restrict in, uint64_t gen){
   const uint64_t N = in->N, mask = N - 1;
+  assert(out != in);
   for (size_t i = 0; i < N; i++){
     const uint64_t idx = i*gen;
     if(idx&N) out->coeffs[idx&mask] = -in->coeffs[i];

@@ -47,7 +47,7 @@ const int t = 2, base_bit = 6;
 
 #else
 // From Concrete/eprint 2022/704 table 4
-#define SET_3
+#define SET_4
 // set 1
 #if defined(SET_1)
 const int n = 585, N = 1024, k = 1, Bg_bit = 8, l = 2, base_bit = 2, t = 5;
@@ -81,16 +81,16 @@ const int t = 8, base_bit = 4;
 #define _EXECS 100
 
 // Benchmark functions (some depend on others)
-// #define BENCH_PRIV_KS
-// #define BENCH_PACK1_KS
-// #define BENCH_LUT_KS
+#define BENCH_PRIV_KS
+#define BENCH_PACK1_KS
+#define BENCH_LUT_KS
 #define BENCH_MV_BOOTSTRAP
-// #define BENCH_TRGSW_BOOTSTRAP
-// #define BENCH_CIRCUIT_BOOTSTRAP
-// #define BENCH_TENSOR_PROD
-// #define BENCH_FDFB
+#define BENCH_TRGSW_BOOTSTRAP
+#define BENCH_CIRCUIT_BOOTSTRAP
+#define BENCH_TENSOR_PROD
+#define BENCH_FDFB
 // #define BENCH_UNFOLDING
-// #define BENCH_BOOTSTRAP_GA
+#define BENCH_BOOTSTRAP_GA
 
 int main(int argc, char const *argv[]){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);

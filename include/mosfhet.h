@@ -178,7 +178,7 @@ void free_polynomial(void * p);
 void free_array_of_polynomials(void * p, int size);
 void init_fft(int N);
 void polynomial_full_mul_with_scale(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2, int bit_size, int scale_bit);
-void polynomial_permute(TorusPolynomial restrict out, TorusPolynomial restrict in, uint64_t gen);
+void polynomial_permute(TorusPolynomial out, TorusPolynomial in, uint64_t gen);
 void polynomial_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2);
 void polynomial_decompose_i(TorusPolynomial out, TorusPolynomial in, int Bg_bit, int l, int i);
 

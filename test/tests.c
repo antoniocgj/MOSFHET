@@ -36,7 +36,7 @@ const int t = 2, base_bit = 6;
 // Note: BR Unfolding requires n to be divisible by the unfolding value. Example: In SET_1, you need to change n from 585 to 592, since 8|592.
 
 // From eprint 2022/704 table 4
-#define SET_3
+#define SET_4
 // set 1 (set 1 should fail most tests)
 #if defined(SET_1)
 const int n = 585, N = 1024, k = 1, Bg_bit = 8, l = 2, base_bit = 2, t = 5;
