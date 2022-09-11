@@ -386,6 +386,7 @@ void full_domain_functional_bootstrap_KS21_2(TLWE out, TorusPolynomial tv, TLWE 
 
 
 /* Misc */ 
+void generate_rnd_seed(uint64_t * p);
 void generate_random_bytes(uint64_t amount, uint8_t * pointer);
 double generate_normal_random(double sigma);
 void generate_torus_normal_random_array(Torus * out, double sigma, int N);

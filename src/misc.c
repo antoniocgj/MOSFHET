@@ -49,13 +49,20 @@ void generate_rnd_seed(uint64_t * p){
 }
 #endif
 
-
+#ifdef USE_SHAKE
 #include "sha3/fips202.h"
+#else
+void aes_prng(uint8_t *output, uint64_t outlen, const uint8_t *input,  uint64_t inlen);
+#endif
 
 void get_rnd_from_hash(uint64_t amount, uint8_t * pointer){
   uint64_t rnd[4];
   generate_rnd_seed(rnd);
+  #ifdef USE_SHAKE
   shake256(pointer, amount, (uint8_t *) rnd, 32);
+  #else
+  aes_prng(pointer, amount, (uint8_t *) rnd, 32);
+  #endif
 }
 
 void get_rnd_from_buffer(uint64_t amount, uint8_t * pointer){
