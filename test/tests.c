@@ -943,6 +943,41 @@ void test_tlwe_pack_key_priv_ks(){
   free_trlwe_generic_ks_key(ksk);
 }
 
+void test_trlwe_pack_key_priv_ks(){
+  const int bit_len = sizeof(Torus)*8;
+  TRLWE_Key key = trlwe_new_binary_key(N, k, rlwe_std_dev);
+  TRLWE_KS_Key * ksk = trlwe_new_priv_KS_key(key, key, t, base_bit);
+
+  Torus in1 = 1UL << (bit_len - Bg_bit);
+  // generate_random_bytes(sizeof(Torus), (uint8_t *) &in1);
+  TRLWE c_1 = trlwe_new_sample(NULL, key);
+  c_1->b->coeffs[0] += in1;
+  
+  TRLWE out_enc = trlwe_alloc_new_sample(k, N); 
+
+  trlwe_priv_keyswitch_2(out_enc, c_1, ksk);
+
+  TorusPolynomial out = polynomial_new_torus_polynomial(N);
+  TorusPolynomial res = polynomial_new_torus_polynomial(N);
+  memset(res->coeffs, 0, N);
+  for (size_t i = 0; i < N; i++){
+    res->coeffs[i] = in1 * -key->s[0]->coeffs[i];
+  }
+  
+  trlwe_phase(out, out_enc, key);
+
+  TEST_ASSERT_TORUS_ARRAY_WITHIN_MESSAGE(1UL << 52, res->coeffs, out->coeffs, N, "Private Key Switching TRLWE(M) -> TRLWE(m*-s) failed");
+
+  free_polynomial(out);
+  free_polynomial(res);
+  free_trlwe(c_1);
+  free_trlwe(out_enc);
+  free_trlwe_key(key);
+  free_trlwe_ks_key(ksk[0]);
+  free_trlwe_ks_key(ksk[1]);
+
+}
+
 void test_multivalue_bootstrap_CLOT21(){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
   TLWE_Key key_tlwe_out = tlwe_new_binary_key(N, rlwe_std_dev);
@@ -979,13 +1014,13 @@ void test_multivalue_bootstrap_CLOT21(){
 
 void test_circuit_bootstrap(){
   SKIP_IF_TORUS32
-  // const int l = 6, Bg_bit = 10, t = 10, base_bit = 4; // Warning: High memory consuming 
+  const int l = 4, Bg_bit = 9, t = 6, base_bit = 4; // Warning: High memory consuming 
   TLWE_Key key_1 = tlwe_new_binary_key(n, lwe_std_dev);
   TRLWE_Key key_2 = trlwe_new_binary_key(N, k, rlwe_std_dev);
   TRGSW_Key key_3 = trgsw_new_key(key_2, l, Bg_bit);
   TLWE_Key key_2_extracted = tlwe_new_binary_key(N, rlwe_std_dev);
   trlwe_extract_tlwe_key(key_2_extracted, key_2);
-  Generic_KS_Key kska = trlwe_new_priv_SK_KS_key(key_2, key_2_extracted, t, base_bit);
+  TRLWE_KS_Key * kska = trlwe_new_priv_KS_key(key_2, key_2, 20, 2);
   Generic_KS_Key kskb = trlwe_new_packing1_KS_key(key_2, key_2_extracted, t, base_bit);
   TRGSW out = trgsw_alloc_new_sample(l, Bg_bit, k, N);
   Bootstrap_Key bk = new_bootstrap_key(key_3, key_1, 1);
@@ -993,11 +1028,12 @@ void test_circuit_bootstrap(){
 
   // Test LWE(1/4) -> TRGSW (1)
   TLWE c_in = tlwe_new_sample(double2torus(1./4), key_1);
-  circuit_bootstrap_2(out, c_in, bk, kska, kskb);
+  circuit_bootstrap_3(out, c_in, bk, kska, kskb);
 
 
   generate_random_bytes(N*sizeof(Torus), (uint8_t *) p[0]->coeffs);
-  TRLWE rnd = trlwe_new_noiseless_trivial_sample(p[0], k, N);
+  // TRLWE rnd = trlwe_new_noiseless_trivial_sample(p[0], k, N);
+  TRLWE rnd = trlwe_new_sample(p[0], key_2);
   TRGSW_DFT out_dft = trgsw_alloc_new_DFT_sample(l, Bg_bit, k, N);
   TRLWE_DFT mul_res_dft = trlwe_alloc_new_DFT_sample(k, N);
   TRLWE mul_res = trlwe_alloc_new_sample(k, N);
@@ -1010,7 +1046,7 @@ void test_circuit_bootstrap(){
   // Test LWE(0) -> TRGSW (0)
   tlwe_sample(c_in, 0, key_1);
 
-  circuit_bootstrap_2(out, c_in, bk, kska, kskb);
+  circuit_bootstrap_3(out, c_in, bk, kska, kskb);
 
   generate_random_bytes(N*sizeof(Torus), (uint8_t *) p[0]->coeffs);
   trgsw_to_DFT(out_dft, out);
@@ -1029,7 +1065,8 @@ void test_circuit_bootstrap(){
   free_tlwe_key(key_1);
   free_trlwe_key(key_2);
   free_trgsw_key(key_3);
-  free_trlwe_generic_ks_key(kska);
+  free_trlwe_ks_key(kska[0]);
+  free_trlwe_ks_key(kska[1]);
   free_trlwe_generic_ks_key(kskb);
   free_tlwe(c_in);
 }
@@ -1985,7 +2022,6 @@ int main(int argc, char const *argv[])
   // RUN_TEST(test_io_pub);
   // RUN_TEST(test_io_priv);
   // RUN_TEST(test_FDFB_CLOT21_3);
-  RUN_TEST(test_functional_bootstrap_ga);
   RUN_TEST(test_normal_generator);
   RUN_TEST(test_tlwe);
   RUN_TEST(test_tlwe_ks);
@@ -2002,6 +2038,7 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_functional_bootstrap);
   RUN_TEST(test_trgsw_mul);
   RUN_TEST(test_programmable_bootstrap);
+  RUN_TEST(test_functional_bootstrap_ga);
   RUN_TEST(test_functional_bootstrap_ga_bounded_key);
   RUN_TEST(test_FDFB_KS21);
   RUN_TEST(test_FDFB_new);
@@ -2012,13 +2049,13 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trlwe_poly_mul);
   RUN_TEST(test_trlwe_ks);
   RUN_TEST(test_functional_mv_bootstrap);
-  RUN_TEST(test_circuit_bootstrap);
   RUN_TEST(test_public_mux);
   RUN_TEST(test_compressed_trlwe);
   RUN_TEST(test_compressed_trlwe_rotate_vaes);
   RUN_TEST(test_trlwe_full_packing_ks);
   RUN_TEST(test_multivalue_bootstrap_CLOT21);
   RUN_TEST(test_trlwe_packing_ks);
+  RUN_TEST(test_circuit_bootstrap);
   RUN_TEST(test_functional_bootstrap_with_encrypted_LUT);
   // RUN_TEST(test_poly_int128_mul);
   RUN_TEST(test_tlwe_pack_key_priv_ks);
@@ -2026,6 +2063,7 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trgsw_reg_sub);
   RUN_TEST(test_functional_bootstrap_trgsw);
   RUN_TEST(test_functional_bootstrap_unfolded);
+  RUN_TEST(test_trlwe_pack_key_priv_ks);
   // HRD tests
   // RUN_TEST(test_trgsw_reg_sub3);
   // RUN_TEST(test_trgsw_naive_mul);

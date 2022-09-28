@@ -117,7 +117,7 @@ void trlwe_compressed_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key){
   // internal product
   for (size_t i = 0; i < key->k; i++){
     aes_full_expand((__m512i *)p_tmp->coeffs, seedi, N);
-    polynomial_naive_mul_addto_torus(out->b, p_tmp, key->s[i]);
+    polynomial_mul_addto_torus(out->b, p_tmp, key->s[i]);
   }
 
   if(m != NULL){

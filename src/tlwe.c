@@ -3,7 +3,7 @@
 TLWE tlwe_alloc_sample(int n){
   TLWE res;
   res = (TLWE) safe_malloc(sizeof(*res));
-  res->a = (Torus *) safe_malloc(sizeof(Torus) * n);
+  res->a = (Torus *) safe_aligned_malloc(sizeof(Torus) * n);
   res->n = n;
   return res;
 }
@@ -52,12 +52,17 @@ TLWE tlwe_load_new_sample(FILE * fd, int n){
   return res;
 }
 
+void tlwe_load_sample(FILE * fd, TLWE c){
+  fread(c->a, sizeof(Torus), c->n, fd);
+  fread(&c->b, sizeof(Torus), 1, fd);
+}
+
 TLWE_Key tlwe_alloc_key(int n, double sigma){
   TLWE_Key res;
   res = (TLWE_Key) safe_malloc(sizeof(*res));
   res->n = n;
   res->sigma = sigma;
-  res->s = (Integer *) safe_malloc(sizeof(Integer)*n);
+  res->s = (Integer *) safe_aligned_malloc(sizeof(Integer)*n);
   return res;
 }
 

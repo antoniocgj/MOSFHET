@@ -1,4 +1,4 @@
-MAKEFILE := $(shell git rev-parse --show-toplevel)/Makefile.def
+MAKEFILE := ../../Makefile.def
 include $(MAKEFILE)
 INCLUDE_FLAGS = $(addprefix -I../../, $(INCLUDE_DIRS))
 FLAGS += $(INCLUDE_FLAGS)

@@ -58,6 +58,32 @@ void aes_prgn_next_16(__m512i * out, __m512i * cnt){
     out[i] = _mm512_aesenclast_epi128(out[i], __global_prng_aes_key[10]);
   }
 }
+
+// Generates outlen bytes from the first 8 bytes of *input
+// Assumes: output is aligned, outlen >= 256 , inlen >= 16
+void aes_prng(uint8_t *output, uint64_t outlen, const uint8_t *input,  uint64_t inlen){
+  assert(outlen >= 256);
+  assert(inlen >= 16);
+  static bool first_exec = true;
+  if(first_exec) {
+    aes_prgn_setup_rnd_seed();
+    first_exec = false;
+  }
+  __m128i cnt = _mm_loadu_si128((__m128i *)input);
+  __m512i cntv = _mm512_broadcast_i64x2 (cnt);
+  __m512i cntv2 = {0, 0, 0, 1, 0, 2, 0, 3};
+  cntv = _mm512_add_epi64 (cntv, cntv2);
+  size_t i;
+  for (i = 0; i < outlen - 255; i+=256){
+    aes_prgn_next_16((__m512i *) &(output[i]), &cntv);
+  }
+  if(outlen > i){
+    __m512i tmp[4];
+    aes_prgn_next_16(tmp, &cntv);
+    memcpy(&output[i], tmp, outlen - i);
+  }
+}
+
 #else
 void aes_prgn_next_16(__m128i * out, __m128i * cnt){
   const __m128i incv = {0, 4};
@@ -76,7 +102,6 @@ void aes_prgn_next_16(__m128i * out, __m128i * cnt){
     out[i] = _mm_aesenclast_si128 (out[i], __global_prng_aes_key[10]);
   }
 }
-#endif
 
 // Generates outlen bytes from the first 8 bytes of *input
 // Assumes: output is aligned, outlen >= 256 , inlen >= 16
@@ -99,3 +124,5 @@ void aes_prng(uint8_t *output, uint64_t outlen, const uint8_t *input,  uint64_t 
     memcpy(&output[i], tmp, outlen - i);
   }
 }
+#endif
+

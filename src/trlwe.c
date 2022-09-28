@@ -200,7 +200,7 @@ void trlwe_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key){
 
   // internal product
   for (size_t i = 0; i < key->k; i++){
-    polynomial_naive_mul_addto_torus(out->b, out->a[i], key->s[i]);
+    polynomial_mul_addto_torus(out->b, out->a[i], key->s[i]);
   }
 
   if(m != NULL){
@@ -220,7 +220,7 @@ void trlwe_phase(TorusPolynomial out, TRLWE in, TRLWE_Key key){
   const int N = key->s[0]->N, k = in->k, byte_size = sizeof(Torus) * N;
   memset(out->coeffs, 0, byte_size);
   for (size_t i = 0; i < k; i++){
-    polynomial_naive_mul_addto_torus(out, in->a[i], key->s[i]);
+    polynomial_mul_addto_torus(out, in->a[i], key->s[i]);
   }
   polynomial_sub_torus_polynomials(out, in->b, out);
 }

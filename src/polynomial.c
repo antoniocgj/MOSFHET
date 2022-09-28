@@ -206,6 +206,30 @@ void polynomial_naive_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, 
   }
 }
 
+
+void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
+  const int N = in2->N;
+  // alloc temporaries
+  static DFT_Polynomial * tmp_pool[32] = {NULL}; 
+  if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_array_of_polynomials_DFT(N, 3);
+  DFT_Polynomial * tmp = tmp_pool[N>>10];
+  // dft mul
+  polynomial_torus_to_DFT(tmp[1], in1);
+  polynomial_torus_to_DFT(tmp[2], in2);
+  polynomial_mul_DFT(tmp[0], tmp[1], tmp[2]);
+  polynomial_DFT_to_torus(out, tmp[0]);
+}
+
+void polynomial_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
+  const int N = in2->N;
+  // alloc temporaries
+  static TorusPolynomial tmp_pool[32] = {NULL}; 
+  if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_torus_polynomial(N);
+  TorusPolynomial tmp = tmp_pool[N>>10];
+  polynomial_mul_torus(tmp, in1, in2);
+  polynomial_addto_torus_polynomial(out, tmp);
+}
+
 /* out = in1*in2 */
 void polynomial_naive_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
   const int N = in2->N;

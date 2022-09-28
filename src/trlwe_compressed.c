@@ -54,7 +54,7 @@ TRLWE trlwe_alloc_new_compressed_sample(int k, int N){
 
 void trlwe_load_compressed_sample(FILE * fd, TRLWE c){
   const int N = c->b->N;
-  fread(c->a[0]->coeffs, sizeof(Torus), 16, fd);
+  fread(c->a[0]->coeffs, sizeof(Torus), 16/sizeof(Torus), fd);
   fread(c->b->coeffs, sizeof(Torus), N, fd);
 }
 
@@ -65,7 +65,7 @@ TRLWE trlwe_load_new_compressed_sample(FILE * fd, int k, int N){
 }
 
 void trlwe_save_compressed_sample(FILE * fd, TRLWE c){
-  fwrite(c->a[0]->coeffs, sizeof(Torus), 16, fd);
+  fwrite(c->a[0]->coeffs, sizeof(Torus), 16/sizeof(Torus), fd);
   fwrite(c->b->coeffs, sizeof(Torus), c->b->N, fd);
 }
 
@@ -97,7 +97,7 @@ void trlwe_compressed_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key){
   #else
     for (size_t j = 0; j < N; j+=4) xoroshiro128pp_vnext(&p_tmp->coeffs[j], seed);
   #endif
-    polynomial_naive_mul_addto_torus(out->b, p_tmp, key->s[i]);
+    polynomial_mul_addto_torus(out->b, p_tmp, key->s[i]);
   }
 
   if(m != NULL){

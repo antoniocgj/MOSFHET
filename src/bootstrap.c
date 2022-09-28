@@ -302,6 +302,28 @@ void circuit_bootstrap_2(TRGSW out, TLWE in, Bootstrap_Key key, Generic_KS_Key k
   free_tlwe(tmp_out);
 }
 
+void circuit_bootstrap_3(TRGSW out, TLWE in, Bootstrap_Key key, TRLWE_KS_Key * kska, Generic_KS_Key kskb){
+  const int bit_len = sizeof(Torus)*8, slot_size = key->N/(2*key->l);
+  TRLWE tv = trlwe_alloc_new_sample(key->k, key->N);
+  TLWE tmp_out = tlwe_alloc_sample(out->samples[0]->b->N);
+  TRLWE tmp = trlwe_alloc_new_sample(tv->k, tv->b->N);
+  Torus lut[out->l*2];
+  for (size_t i = 0; i < out->l; i++){
+    lut[i] = 0;
+    lut[key->l + i] = 1ULL << (bit_len - (i + 1) * out->Bg_bit);
+  }
+  trlwe_torus_packing(tv, lut, 2*out->l);
+  functional_bootstrap_wo_extract(tmp, tv, in, key, 2*key->l);
+  for (size_t i = 0; i < out->l; i++){
+    trlwe_extract_tlwe(tmp_out, tmp, i*slot_size);
+    trlwe_packing1_keyswitch(out->samples[out->l + i], tmp_out, kskb);
+    trlwe_priv_keyswitch_2(out->samples[i], out->samples[out->l + i], kska);
+  }
+  free_trlwe(tv);
+  free_trlwe(tmp);
+  free_tlwe(tmp_out);
+}
+
 /* out = {p0, p1}[selector] */
 void public_mux(TRLWE out, TorusPolynomial p0, TorusPolynomial p1, TRLWE_DFT * selector, int l, int Bg_bit){
   TorusPolynomial p = polynomial_new_torus_polynomial(out->b->N);

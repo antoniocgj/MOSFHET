@@ -93,7 +93,7 @@ typedef struct {
 
 typedef struct {
   TRLWE *** s;
-  int base_bit, t, n;
+  int base_bit, t, n, include_b;
 } * Generic_KS_Key;
 
 /* TRGSW */
@@ -165,6 +165,8 @@ void torus_polynomial_mul_by_xai_addto(TorusPolynomial out, TorusPolynomial in, 
 void torus_polynomial_mul_by_xai_minus_1(TorusPolynomial out, TorusPolynomial in, int a);
 void polynomial_naive_mul_binary(BinaryPolynomial out, BinaryPolynomial in1, BinaryPolynomial in2);
 void polynomial_naive_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2);
+void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2);
+void polynomial_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2);
 void polynomial_naive_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2);
 void polynomial_naive_mul_addto_torus_binary(TorusPolynomial out, TorusPolynomial in1, BinaryPolynomial in2);
 void polynomial_DFT_to_torus(TorusPolynomial out, const DFT_Polynomial in);
@@ -198,6 +200,7 @@ void tlwe_sample(TLWE out, Torus m, TLWE_Key key);
 void tlwe_copy(TLWE out, TLWE in);
 TLWE tlwe_new_sample(Torus m, TLWE_Key key);
 TLWE tlwe_load_new_sample(FILE * fd, int n);
+void tlwe_load_sample(FILE * fd, TLWE c);
 void tlwe_save_sample(FILE * fd, TLWE c);
 TRLWE_DFT trlwe_load_new_DFT_sample(FILE * fd, int k, int N);
 void trlwe_save_DFT_sample(FILE * fd, TRLWE_DFT c);
@@ -296,6 +299,8 @@ void trgsw_monomial_sample(TRGSW out, int64_t m, int e, TRGSW_Key key);
 TRGSW trgsw_new_sample(Torus m, TRGSW_Key key);
 TRGSW trgsw_new_exp_sample(int e, TRGSW_Key key);
 TRGSW trgsw_load_new_sample(FILE * fd, int l, int Bg_bit, int k, int N);
+void trgsw_load_sample(FILE * fd, TRGSW c);
+void trgsw_load_DFT_sample(FILE * fd, TRGSW_DFT out);
 void trgsw_save_DFT_sample(FILE * fd, TRGSW_DFT c);
 TRGSW_DFT trgsw_load_new_DFT_sample(FILE * fd, int l, int Bg_bit, int k, int N);
 void trgsw_save_sample(FILE * fd, TRGSW c);
@@ -357,6 +362,13 @@ void trlwe_packing1_keyswitch_CDKS21(TRLWE out, TLWE in, TRLWE_KS_Key * ks_key);
 TRLWE_KS_Key * trlwe_new_automorphism_KS_keyset(TRLWE_Key key, bool skip_even, int t, int base_bit);
 TRLWE_KS_Key trlwe_new_full_packing_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit);
 void trlwe_full_packing_keyswitch(TRLWE out, TLWE * in, uint64_t size, TRLWE_KS_Key ks_key);
+void trlwe_save_generic_ks_key(FILE * fd, Generic_KS_Key key);
+Generic_KS_Key trlwe_load_new_generic_ks_key(FILE * fd);
+TRLWE_KS_Key * trlwe_new_priv_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t, int base_bit);
+void trlwe_priv_keyswitch_2(TRLWE out, TRLWE in, TRLWE_KS_Key * ks_key);
+void trlwe_save_KS_key(FILE * fd, TRLWE_KS_Key key);
+TRLWE_KS_Key trlwe_load_new_KS_key(FILE * fd);
+
 
 
 
@@ -375,6 +387,7 @@ void save_bootstrap_key(FILE * fd, Bootstrap_Key key);
 Bootstrap_Key load_new_bootstrap_key(FILE * fd);
 void circuit_bootstrap(TRGSW out, TLWE in, Bootstrap_Key key, Generic_KS_Key kska, Generic_KS_Key kskb);
 void circuit_bootstrap_2(TRGSW out, TLWE in, Bootstrap_Key key, Generic_KS_Key kska, Generic_KS_Key kskb);
+void circuit_bootstrap_3(TRGSW out, TLWE in, Bootstrap_Key key, TRLWE_KS_Key * kska, Generic_KS_Key kskb);
 void public_mux(TRLWE out, TorusPolynomial p0, TorusPolynomial p1, TRLWE_DFT * selector, int l, int Bg_bit);
 void multivalue_bootstrap_CLOT21(TLWE * out, TRLWE tv, TLWE in, Bootstrap_Key key, int torus_base, int n_luts);
 void programmable_bootstrap(TLWE out, TRLWE tv, TLWE in, Bootstrap_Key key, int precision, int kappa, int theta);

@@ -83,14 +83,14 @@ const int t = 8, base_bit = 4;
 // Benchmark functions (some depend on others)
 #define BENCH_PRIV_KS
 #define BENCH_PACK1_KS
-#define BENCH_LUT_KS
-#define BENCH_MV_BOOTSTRAP
-#define BENCH_TRGSW_BOOTSTRAP
+// #define BENCH_LUT_KS
+// #define BENCH_MV_BOOTSTRAP
+// #define BENCH_TRGSW_BOOTSTRAP
 #define BENCH_CIRCUIT_BOOTSTRAP
-#define BENCH_TENSOR_PROD
-#define BENCH_FDFB
+// #define BENCH_TENSOR_PROD
+// #define BENCH_FDFB
 // #define BENCH_UNFOLDING
-#define BENCH_BOOTSTRAP_GA
+// #define BENCH_BOOTSTRAP_GA
 
 int main(int argc, char const *argv[]){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
@@ -194,6 +194,11 @@ int main(int argc, char const *argv[]){
 
   MEASURE_TIME("CB_OPT", _EXECS, "Circuit Bootstrap using Multi value Bootstrap",
     circuit_bootstrap_2(trgsw_out, sel, bk_key, kska, kskb);
+  );
+
+  TRLWE_KS_Key * kska2 = trlwe_new_priv_KS_key(key_trlwe, key_trlwe, 10, 4);
+  MEASURE_TIME("CB_OPT2", _EXECS, "Circuit Bootstrap using Multi value Bootstrap + TRLWE KS",
+    circuit_bootstrap_3(trgsw_out, sel, bk_key, kska2, kskb);
   );
 
 #endif

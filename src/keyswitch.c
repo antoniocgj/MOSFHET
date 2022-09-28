@@ -36,6 +36,31 @@ TRLWE_KS_Key trlwe_new_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t, int ba
   return res;
 }
 
+TRLWE_KS_Key * trlwe_new_priv_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t, int base_bit){
+  assert(out_key->k == 1);
+  TRLWE_Key tmp_key = trlwe_alloc_key(out_key->s[0]->N, out_key->k, out_key->sigma);
+  polynomial_negate_torus_polynomial(tmp_key->s[0], out_key->s[0]);
+  polynomial_mul_torus(tmp_key->s[0], tmp_key->s[0], in_key->s[0]);
+  TRLWE_KS_Key * res = safe_malloc(sizeof(TRLWE_KS_Key)*2);
+  res[0] = trlwe_new_KS_key(out_key, tmp_key, t, base_bit);
+  polynomial_negate_torus_polynomial(tmp_key->s[0], out_key->s[0]);
+  res[1] = trlwe_new_KS_key(out_key, tmp_key, t, base_bit);
+  free_trlwe_key(tmp_key);
+  return res;
+}
+
+void trlwe_priv_keyswitch_2(TRLWE out, TRLWE in, TRLWE_KS_Key * ks_key){
+  TRLWE tmp = trlwe_alloc_new_sample(in->k, in->b->N);
+  polynomial_negate_torus_polynomial(tmp->a[0], in->b);
+  memset(tmp->b->coeffs, 0, sizeof(Torus)*tmp->b->N);
+  trlwe_keyswitch(tmp, tmp, ks_key[1]);
+  polynomial_copy_torus_polynomial(out->a[0], in->a[0]);
+  memset(out->b->coeffs, 0, sizeof(Torus)*out->b->N);
+  trlwe_keyswitch(out, out, ks_key[0]);
+  trlwe_addto(out, tmp);
+  free_trlwe(tmp);
+}
+
 TRLWE_KS_Key trlwe_new_full_packing_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
   TRLWE_Key tmp = trlwe_alloc_key(1, in_key->n, in_key->sigma); // N=1, k = n 
   for (size_t i = 0; i < in_key->n; i++){
@@ -57,6 +82,47 @@ void free_trlwe_ks_key(TRLWE_KS_Key key){
   free(key->s);
   free(key);
 }
+
+
+void trlwe_save_KS_key(FILE * fd, TRLWE_KS_Key key){
+  const int t = key->t, k_in = key->k, N = key->s[0][0]->b->N, k = key->s[0][0]->k;
+  fwrite(&key->base_bit, sizeof(int), 1, fd);
+  fwrite(&t, sizeof(int), 1, fd);
+  fwrite(&k_in, sizeof(int), 1, fd);
+  fwrite(&k, sizeof(int), 1, fd);
+  fwrite(&N, sizeof(int), 1, fd);
+  for (size_t i = 0; i < k; i++){
+    for (size_t j = 0; j < t; j++){
+      trlwe_save_DFT_sample(fd, key->s[i][j]);
+    }
+  }
+}
+
+TRLWE_KS_Key trlwe_load_new_KS_key(FILE * fd){
+  int base_bit, t, k_in, N, k;
+  fread(&base_bit, sizeof(int), 1, fd);
+  fread(&t, sizeof(int), 1, fd);
+  fread(&k_in, sizeof(int), 1, fd);
+  fread(&k, sizeof(int), 1, fd);
+  fread(&N, sizeof(int), 1, fd);
+
+  TRLWE_KS_Key res;
+  res = (TRLWE_KS_Key) safe_malloc(sizeof(*res));
+  res->base_bit = base_bit;
+  res->t = t;
+  res->k = k_in;
+
+
+  res->s = (TRLWE_DFT **) safe_malloc(sizeof(TRLWE_DFT*) * k_in);
+  for (size_t i = 0; i < k_in; i++){
+    res->s[i] = (TRLWE_DFT *) safe_malloc(sizeof(TRLWE_DFT) * t);
+    for (size_t j = 0; j < t; j++){
+      res->s[i][j] = trlwe_load_new_DFT_sample(fd, k, N);
+    }
+  }
+  return res;
+}
+
 
 void trlwe_keyswitch(TRLWE out, TRLWE in, TRLWE_KS_Key ks_key){
   const int N = out->b->N;
@@ -274,6 +340,7 @@ Generic_KS_Key trlwe_new_packing1_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int
   res->base_bit = base_bit;
   res->t = t;
   res->n = in_key->n;
+  res->include_b = 0;
 
   res->s = (TRLWE ***) safe_malloc(sizeof(TRLWE****) * in_key->n);
   for (size_t i = 0; i < in_key->n; i++){
@@ -293,7 +360,7 @@ Generic_KS_Key trlwe_new_packing1_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int
 
 void free_trlwe_generic_ks_key(Generic_KS_Key key){
   const int base = 1 << key->base_bit, t = key->t, n = key->n;
-  for (size_t i = 0; i < n; i++){
+  for (size_t i = 0; i < n + key->include_b; i++){
     for (size_t j = 0; j < t; j++){
       for (size_t k = 0; k <  base - 1; k++){
         free_trlwe(key->s[i][j][k]);
@@ -305,6 +372,56 @@ void free_trlwe_generic_ks_key(Generic_KS_Key key){
   free(key->s);
   free(key);
 }
+
+
+void trlwe_save_generic_ks_key(FILE * fd, Generic_KS_Key key){
+  const int base = 1 << key->base_bit, t = key->t, n = key->n, N = key->s[0][0][0]->b->N, k = key->s[0][0][0]->k, include_b = key->include_b;
+  fwrite(&key->base_bit, sizeof(int), 1, fd);
+  fwrite(&t, sizeof(int), 1, fd);
+  fwrite(&n, sizeof(int), 1, fd);
+  fwrite(&k, sizeof(int), 1, fd);
+  fwrite(&N, sizeof(int), 1, fd);
+  fwrite(&include_b, sizeof(int), 1, fd);
+  for (size_t i = 0; i < n + include_b; i++){
+    for (size_t j = 0; j < t; j++){
+      for (size_t l = 0; l < base - 1; l++){
+        _MACRO_trlwe_save_sample(fd, key->s[i][j][l]);
+      }
+    }
+  }
+}
+
+Generic_KS_Key trlwe_load_new_generic_ks_key(FILE * fd){
+  int base_bit, t, n, N, k, include_b;
+  fread(&base_bit, sizeof(int), 1, fd);
+  fread(&t, sizeof(int), 1, fd);
+  fread(&n, sizeof(int), 1, fd);
+  fread(&k, sizeof(int), 1, fd);
+  fread(&N, sizeof(int), 1, fd);
+  fread(&include_b, sizeof(int), 1, fd);
+
+  const int base = 1 << base_bit;
+
+  Generic_KS_Key res;
+  res = (Generic_KS_Key) safe_malloc(sizeof(*res));
+  res->base_bit = base_bit;
+  res->t = t;
+  res->n = n;
+  res->include_b = include_b;
+
+  res->s = (TRLWE ***) safe_malloc(sizeof(TRLWE**) * n);
+  for (size_t i = 0; i < n + include_b; i++){
+    res->s[i] = (TRLWE **) safe_malloc(sizeof(TRLWE*) * t);
+      for (size_t j = 0; j < t; j++){
+        res->s[i][j] = (TRLWE*) safe_malloc(sizeof(TRLWE) * (base - 1));
+        for (size_t l = 0; l < base - 1; l++){
+          res->s[i][j][l] = _MACRO_trlwe_load_new_sample(fd, k, N);
+        }
+      }
+  }
+  return res;
+}
+
 
 void trlwe_packing1_keyswitch(TRLWE out, TLWE in, Generic_KS_Key ks_key){
   const int bit_size = sizeof(Torus)*8;
@@ -392,6 +509,7 @@ Generic_KS_Key trlwe_new_priv_SK_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int 
   res->base_bit = base_bit;
   res->t = t;
   res->n = in_key->n;
+  res->include_b = 1;
 
   res->s = (TRLWE ***) safe_malloc(sizeof(TRLWE****) * (in_key->n + 1));
   for (size_t i = 0; i < in_key->n + 1; i++){

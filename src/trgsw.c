@@ -71,6 +71,12 @@ TRGSW trgsw_load_new_sample(FILE * fd, int l, int Bg_bit, int k, int N){
   return res;
 }
 
+void trgsw_load_sample(FILE * fd, TRGSW c){
+  for (size_t i = 0; i < c->l * (c->samples[0]->k + 1); i++){
+    trlwe_load_sample(fd, c->samples[i]);
+  }
+}
+
 void trgsw_save_DFT_sample(FILE * fd, TRGSW_DFT c){
   for (size_t i = 0; i < c->l * (c->samples[0]->k + 1); i++){
     trlwe_save_DFT_sample(fd, c->samples[i]);
@@ -83,6 +89,12 @@ TRGSW_DFT trgsw_load_new_DFT_sample(FILE * fd, int l, int Bg_bit, int k, int N){
     trlwe_load_DFT_sample(fd, res->samples[i]);
   }
   return res;
+}
+
+void trgsw_load_DFT_sample(FILE * fd, TRGSW_DFT out){
+  for (size_t i = 0; i < out->l * (out->samples[0]->k + 1); i++){
+    trlwe_load_DFT_sample(fd, out->samples[i]);
+  }
 }
 
 TRGSW * trgsw_alloc_new_sample_array(int count, int l, int Bg_bit, int k, int N){
@@ -194,57 +206,57 @@ uint64_t _debug_trgsw_decrypt_exp_sample(TRGSW c, TRGSW_Key key){
   return resIdx;
 }
 
-uint64_t _debug_trgsw_decrypt_exp_DFT_sample(TRGSW_DFT c, TRGSW_Key key){
-  const uint64_t N = key->trlwe_key->s[0]->N, k = key->trlwe_key->k, l = key->l;
-  TRLWE tmp = trlwe_new_noiseless_trivial_sample(NULL, k, N);
-  trlwe_from_DFT(tmp, c->samples[l]);
-  TorusPolynomial poly = polynomial_new_torus_polynomial(N);
-  trlwe_phase(poly, tmp, key->trlwe_key);
-  int resIdx = -1;
-  for (int j = 0; j < N; j++){
-    if((poly->coeffs[j] < - (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit)))){
-      if(resIdx != -1){
-        // printf("[TRGSW Exp Decryption error] Current: %lf*x^%d - Previous: %lf*x^%d\n", torus2double(poly->coeffs[j]), j, torus2double(poly->coeffs[resIdx]), resIdx);
-        return -1;
-      }
-      resIdx = j;
-    }
-  }
-  free_trlwe(tmp);
-  free_polynomial(poly);
-  return resIdx;
-}
-
-
 // uint64_t _debug_trgsw_decrypt_exp_DFT_sample(TRGSW_DFT c, TRGSW_Key key){
-//   const uint64_t N = key->trlwe_key->s[0]->N, k = key->trlwe_key->k;
+//   const uint64_t N = key->trlwe_key->s[0]->N, k = key->trlwe_key->k, l = key->l;
 //   TRLWE tmp = trlwe_new_noiseless_trivial_sample(NULL, k, N);
-//   tmp->b->coeffs[0] = (1UL << (64 - key->Bg_bit));
-//   TRLWE_DFT res = trlwe_alloc_new_DFT_sample(k, N);
-//   trgsw_mul_trlwe_DFT(res, tmp, c);
-//   trlwe_from_DFT(tmp, res);
+//   trlwe_from_DFT(tmp, c->samples[l]);
 //   TorusPolynomial poly = polynomial_new_torus_polynomial(N);
 //   trlwe_phase(poly, tmp, key->trlwe_key);
 //   int resIdx = -1;
 //   for (int j = 0; j < N; j++){
-//     if((poly->coeffs[j] < - (1UL << (63 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (63 - key->Bg_bit)))){
+//     if((poly->coeffs[j] < - (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (sizeof(Torus)*8 - 1 - key->Bg_bit)))){
 //       if(resIdx != -1){
-//         printf("[TRGSW Exp Decryption error] Current: %lf*x^%d - Previous: %lf*x^%d\n", torus2double(poly->coeffs[j]), j, torus2double(poly->coeffs[resIdx]), resIdx);
+//         // printf("[TRGSW Exp Decryption error] Current: %lf*x^%d - Previous: %lf*x^%d\n", torus2double(poly->coeffs[j]), j, torus2double(poly->coeffs[resIdx]), resIdx);
 //         return -1;
 //       }
 //       resIdx = j;
 //     }
 //   }
-//   // if(resIdx == -1){
-//   //   printf("\nTRGSW error: no value\n");
-//   //   for (size_t i = 0; i < N; i++)
-//   //   {
-//   //     printf("%lu: %lf, ", i, torus2double(poly->coeffs[i]));
-//   //   }
-//   //   printf("\n");
-//   // }
+//   free_trlwe(tmp);
+//   free_polynomial(poly);
 //   return resIdx;
 // }
+
+
+uint64_t _debug_trgsw_decrypt_exp_DFT_sample(TRGSW_DFT c, TRGSW_Key key){
+  const uint64_t N = key->trlwe_key->s[0]->N, k = key->trlwe_key->k;
+  TRLWE tmp = trlwe_new_noiseless_trivial_sample(NULL, k, N);
+  tmp->b->coeffs[0] = (1UL << (64 - key->Bg_bit));
+  TRLWE_DFT res = trlwe_alloc_new_DFT_sample(k, N);
+  trgsw_mul_trlwe_DFT(res, tmp, c);
+  trlwe_from_DFT(tmp, res);
+  TorusPolynomial poly = polynomial_new_torus_polynomial(N);
+  trlwe_phase(poly, tmp, key->trlwe_key);
+  int resIdx = -1;
+  for (int j = 0; j < N; j++){
+    if((poly->coeffs[j] < - (1UL << (63 - key->Bg_bit))) && (poly->coeffs[j] > (1UL << (63 - key->Bg_bit)))){
+      if(resIdx != -1){
+        printf("[TRGSW Exp Decryption error] Current: %lf*x^%d - Previous: %lf*x^%d\n", torus2double(poly->coeffs[j]), j, torus2double(poly->coeffs[resIdx]), resIdx);
+        return -1;
+      }
+      resIdx = j;
+    }
+  }
+  // if(resIdx == -1){
+  //   printf("\nTRGSW error: no value\n");
+  //   for (size_t i = 0; i < N; i++)
+  //   {
+  //     printf("%lu: %lf, ", i, torus2double(poly->coeffs[i]));
+  //   }
+  //   printf("\n");
+  // }
+  return resIdx;
+}
 
 
 TRGSW trgsw_new_exp_sample(int e, TRGSW_Key key){
@@ -425,5 +437,11 @@ void trgsw_naive_mul(TRGSW out, TRGSW in1, TRGSW in2){
   const int l = in2->l, k = in1->samples[0]->k;
   for (size_t i = 0; i < (k+1)*l; i++){
     trgsw_naive_mul_trlwe(out->samples[i], in1->samples[i], in2);
+  }
+}
+
+void trgsw_ks_b_to_a(TRGSW c, TRLWE_KS_Key * ksk){
+  for (size_t i = 0; i < c->l; i++){
+    trlwe_priv_keyswitch_2(c->samples[i], c->samples[c->l + i], ksk);
   }
 }
