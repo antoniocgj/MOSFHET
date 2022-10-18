@@ -49,6 +49,10 @@ const double lwe_std_dev = 7.747831515176779e-6, rlwe_std_dev = 2.21486881160055
 // set 3
 const int n = 829, N = 4096, k = 1, Bg_bit = 23, l = 1, base_bit = 2, t = 11;
 const double lwe_std_dev = 1.0562341599676662e-6, rlwe_std_dev = 2.168404344971009e-19;
+#elif defined(SET_K3)
+// set k = 3
+const int n = 863, N = 512, k = 3, Bg_bit = 19, l = 1, base_bit = 7, t = 2;
+const double lwe_std_dev = 5.672940231307811e-07, rlwe_std_dev = 2.9555715338799682e-12;
 #else
 // From TFHEpp
 // LWE params
@@ -1627,7 +1631,7 @@ void test_programmable_bootstrap(){
 
 void test_functional_bootstrap(){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
-  TLWE_Key key_tlwe_out = tlwe_new_binary_key(N, rlwe_std_dev);
+  TLWE_Key key_tlwe_out = tlwe_new_binary_key(k*N, rlwe_std_dev);
   TRLWE_Key key_trlwe = trlwe_new_binary_key(N, k, rlwe_std_dev);
   trlwe_extract_tlwe_key(key_tlwe_out, key_trlwe);
 
@@ -1843,7 +1847,7 @@ void test_functional_bootstrap_trgsw(){
 void test_functional_mv_bootstrap(){
 
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
-  TLWE_Key key_tlwe_out = tlwe_new_binary_key(N, rlwe_std_dev);
+  TLWE_Key key_tlwe_out = tlwe_new_binary_key(k*N, rlwe_std_dev);
   TRLWE_Key key_trlwe = trlwe_new_binary_key(N, k, rlwe_std_dev);
   trlwe_extract_tlwe_key(key_tlwe_out, key_trlwe);
   _glb_debug_trlwe_key = key_trlwe;
@@ -2025,6 +2029,9 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_normal_generator);
   RUN_TEST(test_tlwe);
   RUN_TEST(test_tlwe_ks);
+  RUN_TEST(test_trlwe_ks);
+  RUN_TEST(test_blind_rotate);
+  RUN_TEST(test_functional_bootstrap);
   RUN_TEST(test_poly_DFT);
   RUN_TEST(test_poly_DFT_mul);
   RUN_TEST(test_tlwe_pack1_ks_CDKS21);
@@ -2034,9 +2041,8 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trgsw_mul_by_xai);
   RUN_TEST(test_trgsw_dft);
   RUN_TEST(test_trgsw_trlwe_mul);
-  RUN_TEST(test_blind_rotate);
-  RUN_TEST(test_functional_bootstrap);
   RUN_TEST(test_trgsw_mul);
+  RUN_TEST(test_functional_mv_bootstrap);
   RUN_TEST(test_programmable_bootstrap);
   RUN_TEST(test_functional_bootstrap_ga);
   RUN_TEST(test_functional_bootstrap_ga_bounded_key);
@@ -2047,8 +2053,6 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_tlwe_mul);
   RUN_TEST(test_trlwe_mul); // tensor prod
   RUN_TEST(test_trlwe_poly_mul);
-  RUN_TEST(test_trlwe_ks);
-  RUN_TEST(test_functional_mv_bootstrap);
   RUN_TEST(test_public_mux);
   RUN_TEST(test_compressed_trlwe);
   RUN_TEST(test_compressed_trlwe_rotate_vaes);

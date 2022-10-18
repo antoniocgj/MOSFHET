@@ -148,6 +148,7 @@ TRGSW trgsw_new_noiseless_trivial_sample(Torus m, int l, int Bg_bit, int k, int 
   return res;
 }
 
+/* TRGSW_key(mX^e) */
 void trgsw_monomial_sample(TRGSW out, int64_t m, int e, TRGSW_Key key){
   const int l = key->l, k = key->trlwe_key->k, Bg_bit = key->Bg_bit, N = key->trlwe_key->s[0]->N;
   if(e&N) m *= -1;
@@ -270,6 +271,20 @@ void trgsw_sub(TRGSW out, TRGSW in1, TRGSW in2){
   }
 }
 
+void trgsw_DFT_sub(TRGSW_DFT out, TRGSW_DFT in1, TRGSW_DFT in2){
+  const int l = in1->l, k = in1->samples[0]->k;
+  for (size_t i = 0; i < (k+1)*l; i++){
+    trlwe_DFT_sub(out->samples[i], in1->samples[i], in2->samples[i]);
+  }
+}
+
+void trgsw_DFT_add(TRGSW_DFT out, TRGSW_DFT in1, TRGSW_DFT in2){
+  const int l = in1->l, k = in1->samples[0]->k;
+  for (size_t i = 0; i < (k+1)*l; i++){
+    trlwe_DFT_add(out->samples[i], in1->samples[i], in2->samples[i]);
+  }
+}
+
 void trgsw_copy(TRGSW out, TRGSW in){
   const int l = in->l, k = in->samples[0]->k;
   for (size_t i = 0; i < (k+1)*l; i++){
@@ -361,6 +376,7 @@ void trgsw_mul_trlwe_DFT_1(TRLWE_DFT out, TRLWE in1, TRGSW_DFT in2){
 
 void trgsw_mul_trlwe_DFT(TRLWE_DFT out, TRLWE in1, TRGSW_DFT in2){
   const int N = in1->b->N, l = in2->l;
+  if(in1->k > 1) return trgsw_mul_trlwe_DFT_1(out, in1, in2);
   assert(in1->k == 1);
   TorusPolynomial dec_trlwe = polynomial_new_torus_polynomial(N);
   DFT_Polynomial dec_trlwe_DFT = polynomial_new_DFT_polynomial(N); 
@@ -389,6 +405,7 @@ void trgsw_mul_trlwe_DFT(TRLWE_DFT out, TRLWE in1, TRGSW_DFT in2){
 }
 
 void trgsw_mul_DFT(TRGSW_DFT out, TRGSW in1, TRGSW_DFT in2){
+  assert(out != in2);
   const int l = in2->l, k = in1->samples[0]->k;
   for (size_t i = 0; i < (k+1)*l; i++){
     trgsw_mul_trlwe_DFT(out->samples[i], in1->samples[i], in2);
@@ -396,6 +413,7 @@ void trgsw_mul_DFT(TRGSW_DFT out, TRGSW in1, TRGSW_DFT in2){
 }
 
 void trgsw_mul_DFT2(TRGSW_DFT out, TRGSW_DFT in1, TRGSW_DFT in2){
+  assert(out != in2);
   const int N = in1->samples[0]->b->N, l = in2->l, k = in1->samples[0]->k;
   TRLWE tmp = trlwe_alloc_new_sample(k, N);
   for (size_t i = 0; i < (k+1)*l; i++){

@@ -265,6 +265,13 @@ void trlwe_DFT_add(TRLWE_DFT out, TRLWE_DFT in1,  TRLWE_DFT in2){
   polynomial_add_DFT_polynomials(out->b, in1->b, in2->b);
 }
 
+void trlwe_DFT_sub(TRLWE_DFT out, TRLWE_DFT in1,  TRLWE_DFT in2){
+  for (size_t i = 0; i < in1->k; i++){
+    polynomial_sub_DFT_polynomials(out->a[i], in1->a[i], in2->a[i]);
+  }
+  polynomial_sub_DFT_polynomials(out->b, in1->b, in2->b);
+}
+
 void trlwe_DFT_addto(TRLWE_DFT out, TRLWE_DFT in){
   trlwe_DFT_add(out, out, in);
 }

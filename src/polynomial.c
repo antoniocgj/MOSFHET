@@ -98,6 +98,12 @@ void polynomial_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_
   }
 }
 
+void polynomial_sub_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2){
+  for (size_t i = 0; i < in2->N; i++){
+    out->coeffs[i] = in1->coeffs[i] - in2->coeffs[i];
+  }
+}
+
 /* out = in */
 void polynomial_copy_torus_polynomial(TorusPolynomial out, TorusPolynomial in){
   memcpy(out->coeffs, in->coeffs, in->N*sizeof(Torus));

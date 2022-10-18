@@ -2,8 +2,8 @@ CC = gcc-10
 FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm
 DEBUG_FLAGS = -O0 -g $(FLAGS)
 INCLUDE_DIRS = include/
-OPT_FLAGS = -O3 -fwhole-program -flto -DNDEBUG $(FLAGS)
-LIB_FLAGS = -O3 -DNDEBUG $(FLAGS)
+OPT_FLAGS = -O3 -fwhole-program -flto  $(FLAGS)
+LIB_FLAGS = -O3 $(FLAGS)
 SRC = keyswitch.c bootstrap.c bootstrap_ga.c tlwe.c trlwe.c  trgsw.c misc.c	polynomial.c register.c sha3/fips202.c fft/karatsuba.c
 LIBS = 
 LD_LIBS =
@@ -25,6 +25,10 @@ endif
 
 ifdef TORUS32
  FLAGS += -DTORUS32
+endif
+
+ifndef FAST_DEBUG
+ FLAGS += -DNDEBUG
 endif
 
 ifdef PORTABLE_BUILD
