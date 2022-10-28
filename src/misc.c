@@ -1,9 +1,9 @@
 #include "mosfhet.h"
 
 #ifdef TORUS32
-#define TORUS_SCALE 4294967295.0
+#define TORUS_SCALE 4294967296.0
 #else
-#define TORUS_SCALE 18446744073709551615.0
+#define TORUS_SCALE 18446744073709551616.0
 #endif
 
 double torus2double(Torus x){
