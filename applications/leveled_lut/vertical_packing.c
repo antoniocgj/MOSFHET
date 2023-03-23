@@ -22,7 +22,6 @@ TRGSW_DFT * encrypt_bits(int m, int size, TRGSW_Key k){
 }
 
 void CMUX(TRLWE out, TRLWE in1, TRLWE in2, TRGSW_DFT selector){
-  assert(out != in1);
   TRLWE_DFT tmp = trlwe_alloc_new_DFT_sample(out->k, out->b->N);
   TRLWE tmp2 = trlwe_alloc_new_sample(out->k, out->b->N);
   trlwe_sub(tmp2, in2, in1);
@@ -70,9 +69,9 @@ uint32_t * gen_random_LUT(uint32_t size, uint32_t precision){
 int main(int argc, char const *argv[])
 {
   // parameters (for around 5 bits of output precision)
-  const uint32_t N = 1024, k = 1, Bg_bit = 8, l = 2;
-  const double rlwe_std_dev = 2.989040792967434E-8;
-  const int input_precision = 16, output_precision = 6;
+  const uint32_t N = 2048, k = 1, Bg_bit = 23, l = 1;
+  const double rlwe_std_dev = 2.2148688116005568e-16;
+  const int input_precision = 20, output_precision = 16;
   // setup keys
   TRLWE_Key rlwe_key = trlwe_new_binary_key(N, k, rlwe_std_dev);
   TRGSW_Key input_key = trgsw_new_key(rlwe_key, l, Bg_bit);

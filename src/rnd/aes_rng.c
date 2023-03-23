@@ -103,7 +103,7 @@ void aes_prgn_next_16(__m128i * out, __m128i * cnt){
   }
 }
 
-// Generates outlen bytes from the first 8 bytes of *input
+// Generates outlen bytes from the first 16 bytes of *input
 // Assumes: output is aligned, outlen >= 256 , inlen >= 16
 void aes_prng(uint8_t *output, uint64_t outlen, const uint8_t *input,  uint64_t inlen){
   assert(outlen >= 256);
