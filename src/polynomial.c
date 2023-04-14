@@ -318,12 +318,14 @@ void polynomial_mul_DFT(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial i
   __m512d * b = (__m512d *) in2->coeffs;
   __m512d * c = (__m512d *) out->coeffs;
   for (int i = 0; i < N / 16; i++) {
-    // out->coeffs[i] = in1->coeffs[i] * in2->coeffs[i] - in1->coeffs[i + N / 2] * in2->coeffs[i + N / 2];
-    const __m512d _1 = _mm512_mul_pd (a[i + N/16], b[i + N/16]);
-    c[i] = _mm512_fmsub_pd (a[i], b[i],  _1);
-    // out->coeffs[i + N / 2] = in1->coeffs[i + N / 2] * in2->coeffs[i] + in1->coeffs[i] * in2->coeffs[i + N / 2];
-    const __m512d _2 = _mm512_mul_pd (a[i + N/16], b[i]);
-    c[i + N/16] = _mm512_fmadd_pd (a[i], b[i + N/16],  _2);
+    const __m512d a_im = a[i + N/16];
+    const __m512d a_re = a[i];
+    const __m512d b_re = b[i];
+    const __m512d b_im = b[i + N/16];
+    const __m512d _1 = _mm512_mul_pd (a_im, b_im);
+    c[i] = _mm512_fmsub_pd (a_re, b_re,  _1);
+    const __m512d _2 = _mm512_mul_pd (a_im, b_re);
+    c[i + N/16] = _mm512_fmadd_pd (a_re, b_im,  _2);
   }
   #else
   for (int i = 0; i < N / 2; i++) {

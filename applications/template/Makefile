@@ -1,9 +1,7 @@
-MAKEFILE := $(shell git rev-parse --show-toplevel)/Makefile.def
-include $(MAKEFILE)
-INCLUDE_FLAGS = $(addprefix -I../../, $(INCLUDE_DIRS))
-FLAGS += $(INCLUDE_FLAGS)
+MOSFHET_DIR = ../../
+include $(MOSFHET_DIR)/Makefile.def
 
 all: main
 
-main: $(addprefix ../../src/, $(SRC)) main.c
+main: $(SRC_MOSFHET) main.c
 	$(CC) -g -o main $^ $(OPT_FLAGS) $(LIBS)

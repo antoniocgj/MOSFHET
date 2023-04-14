@@ -21,20 +21,57 @@ static __m128i __global_prng_aes_key[11];
 #define _mm512_broadcast_i64x2(X) X 
 #endif
 
-
+bool __glb_aes_setup = false;
 void setup_aes_prgn_key(__m128i * seed){
-  const uint8_t rnd_c[11] = {0, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36};
+  __glb_aes_setup = true;
   __m128i tmp1, tmp2;
   tmp1 = _mm_loadu_si128((__m128i*)seed);
   __global_prng_aes_key[0] = _mm512_broadcast_i64x2(tmp1);
-  for (size_t i = 1; i < 11; i++){
-    tmp2 = _mm_aeskeygenassist_si128(tmp1, rnd_c[i]);
-    tmp1 = AES_128_ASSIST(tmp1, tmp2);
-    __global_prng_aes_key[i] = _mm512_broadcast_i64x2(tmp1);
-  }
+
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x01);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[1] = _mm512_broadcast_i64x2(tmp1);
+
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x02);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[2] = _mm512_broadcast_i64x2(tmp1);
+
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x04);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[3] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x08);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[4] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x10);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[5] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x20);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[6] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x40);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[7] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x80);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[8] = _mm512_broadcast_i64x2(tmp1);
+    
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x1B);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[9] = _mm512_broadcast_i64x2(tmp1);
+
+  tmp2 = _mm_aeskeygenassist_si128(tmp1, 0x36);
+  tmp1 = AES_128_ASSIST(tmp1, tmp2);
+  __global_prng_aes_key[10] = _mm512_broadcast_i64x2(tmp1);
+  
 }
 
 void aes_prgn_setup_rnd_seed(){
+  if(__glb_aes_setup) return;
   __m128i s[2];
   generate_rnd_seed((uint64_t*)s);
   setup_aes_prgn_key(s);

@@ -1,14 +1,12 @@
-MAKEFILE := ../../Makefile.def
-include $(MAKEFILE)
-INCLUDE_FLAGS = $(addprefix -I../../, $(INCLUDE_DIRS))
-FLAGS += $(INCLUDE_FLAGS)
+MOSFHET_DIR = ../../
+include $(MOSFHET_DIR)/Makefile.def
 
 all: main
 
-main: $(addprefix ../../src/, $(SRC)) main.c
+main: $(SRC_MOSFHET) main.c
 	$(CC) -g -o main $^ $(OPT_FLAGS) $(LIBS)
 
-vertical_packing: $(addprefix ../../src/, $(SRC)) vertical_packing.c
+vertical_packing: $(SRC_MOSFHET) vertical_packing.c
 	$(CC) -g -o vertical_packing $^ $(OPT_FLAGS) $(LIBS)
 
 clean: 
