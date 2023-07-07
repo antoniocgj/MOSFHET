@@ -276,6 +276,8 @@ void trlwe_DFT_addto(TRLWE_DFT out, TRLWE_DFT in){
   trlwe_DFT_add(out, out, in);
 }
 
+#ifndef AVX512_OPT
+
 void trlwe_sub(TRLWE out, TRLWE in1, TRLWE in2){
   for (size_t i = 0; i < in1->k; i++){
     polynomial_sub_torus_polynomials(out->a[i], in1->a[i], in2->a[i]);
@@ -283,6 +285,20 @@ void trlwe_sub(TRLWE out, TRLWE in1, TRLWE in2){
   polynomial_sub_torus_polynomials(out->b, in1->b, in2->b);
 }
 
+#else 
+void trlwe_sub(TRLWE out, TRLWE in1, TRLWE in2){
+  __m512i * a1 = (__m512i *) in1->a[0]->coeffs;
+  __m512i * b1 = (__m512i *) in2->a[0]->coeffs;
+  __m512i * c1 = (__m512i *) out->a[0]->coeffs;
+  __m512i * a2 = (__m512i *) in1->b->coeffs;
+  __m512i * b2 = (__m512i *) in2->b->coeffs;
+  __m512i * c2 = (__m512i *) out->b->coeffs;
+  for (size_t i = 0; i < in2->b->N/8; i++){
+    c1[i] = _mm512_sub_epi64(a1[i], b1[i]);
+    c2[i] = _mm512_sub_epi64(a2[i], b2[i]);
+  }
+}
+#endif
 void trlwe_subto(TRLWE out, TRLWE in){
   trlwe_sub(out, out, in);
 }

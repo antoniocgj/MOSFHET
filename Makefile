@@ -1,5 +1,6 @@
 MOSFHET_DIR = ./
 include Makefile.def
+BENCH=benchmark.c
 
 all: mosfhet
 
@@ -30,7 +31,7 @@ test_debug: test/test
 test/test: $(SRC_MOSFHET) test/unity_test/unity.c test/tests.c 
 	$(CC) -g -o test/test $^ $(TEST_FLAGS) $(LIBS)
 
-test/benchmark: $(SRC_MOSFHET) test/benchmark.c
+test/benchmark: $(SRC_MOSFHET) test/$(BENCH)
 	$(CC) -g -o test/benchmark $^ $(OPT_FLAGS) $(LIBS)
 
 test_fft: test/test_fft

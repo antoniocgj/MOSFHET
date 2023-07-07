@@ -178,6 +178,7 @@ void polynomial_copy_torus_polynomial(TorusPolynomial out, TorusPolynomial in);
 void polynomial_negate_torus_polynomial(TorusPolynomial out, TorusPolynomial in);
 void polynomial_copy_DFT_polynomial(DFT_Polynomial out, DFT_Polynomial in);
 void free_polynomial(void * p);
+void free_DFT_polynomial(DFT_Polynomial p);
 void free_array_of_polynomials(void * p, int size);
 void init_fft(int N);
 void polynomial_full_mul_with_scale(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2, int bit_size, int scale_bit);
@@ -280,12 +281,10 @@ TRLWE trlwe_load_new_compressed_sample(FILE * fd, int k, int N);
 void trlwe_load_compressed_sample(FILE * fd, TRLWE c);
 void trlwe_save_compressed_sample(FILE * fd, TRLWE c);
 void trlwe_compressed_subto(TRLWE out, TRLWE in);
-#ifdef USE_VAES
-void aes_setup_rnd_seed();
-void setup_aes_key(__m128i * seed);
-void trlwe_mul_by_xai_addto_comp_vaes(TRLWE out, TRLWE in, int a);
-void trgsw_mul_by_xai_addto_comp_vaes(TRGSW out, TRGSW in, int a);
-#endif
+void trlwe_compressed_DFT_sample(TRLWE_DFT out, TorusPolynomial m, TRLWE_Key key);
+TRLWE_DFT trlwe_new_compressed_DFT_sample(TorusPolynomial m, TRLWE_Key key);
+void trlwe_compressed_DFT_mul_addto(TRLWE_DFT out, DFT_Polynomial in1, TRLWE_DFT in2);
+
 
 /* TRGSW */
 TRGSW_Key trgsw_new_key(TRLWE_Key trlwe_key, int l, int Bg_bit);
@@ -400,6 +399,9 @@ void full_domain_functional_bootstrap_CLOT21(TLWE out, TRLWE tv[2], TLWE in, Boo
 void full_domain_functional_bootstrap_CLOT21_2(TLWE out, Torus * tv, TLWE in, Bootstrap_Key key, Generic_KS_Key ksk, TRLWE_KS_Key rlk, int precision);
 void full_domain_functional_bootstrap_KS21(TLWE out, TorusPolynomial tv, TLWE in, Bootstrap_Key key, Generic_KS_Key ksk, int torus_base);
 void full_domain_functional_bootstrap_KS21_2(TLWE out, TorusPolynomial tv, TLWE in, Bootstrap_Key key, Generic_KS_Key ksk, int torus_base);
+void multivalue_bootstrap_UBR_phase1(TRGSW_DFT * out, TLWE in, Bootstrap_Key key);
+void multivalue_bootstrap_UBR_phase2(TLWE out, TRLWE tv, TLWE in, TRGSW_DFT * sa, Bootstrap_Key key, int torus_base);
+
 
 
 /* Misc */ 

@@ -1,4 +1,4 @@
-CC = gcc-10
+CC = gcc
 FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm
 DEBUG_FLAGS = -O0 -g $(FLAGS)
 INCLUDE_DIRS = $(addprefix $(MOSFHET_DIR), /include)
@@ -10,14 +10,15 @@ LD_LIBS =
 BUILD_LIBS = 
 TEST_FLAGS = $(OPT_FLAGS)
 FFT_LIB = spqlios_avx512
-A_PRGN = xoshiro
+A_PRGN = vaes
+ENABLE_VAES = true
 
 ifeq ($(A_PRGN),shake)
 	FLAGS += -DUSE_SHAKE -DUSE_COMPRESSED_TRLWE
 	__SRC += trlwe_compressed.c
 else ifeq ($(A_PRGN),vaes)
 	__SRC += trlwe_compressed_vaes.c
-	FLAGS += -DUSE_VAES -DUSE_COMPRESSED_TRLWE
+	FLAGS += -DUSE_COMPRESSED_TRLWE
 else ifeq ($(A_PRGN),xoshiro)
 	__SRC += trlwe_compressed.c
 	FLAGS += -DUSE_COMPRESSED_TRLWE
@@ -33,8 +34,13 @@ endif
 
 ifdef PORTABLE_BUILD
 	FFT_LIB=ffnt
+	FLAGS += -DUSE_SHAKE
 else
   __SRC += ./rnd/aes_rng.c
+endif
+
+ifeq ($(ENABLE_VAES), true)
+	FLAGS += -DVAES_OPT
 endif
 
 ifeq ($(FFT_LIB),spqlios)

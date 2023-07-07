@@ -42,6 +42,11 @@ void free_polynomial(void * p){
   free(p);
 }
 
+void free_DFT_polynomial(DFT_Polynomial p){
+  free(p->coeffs);
+  free(p);
+}
+
 void free_array_of_polynomials(void * p, int size){
   for (size_t i = 0; i < size; i++) free_polynomial(((void **) p)[i]);
   free(p);
@@ -130,16 +135,23 @@ void polynomial_addto_torus_polynomial(TorusPolynomial out, TorusPolynomial in){
 
 /* out = in1 - in2 */
 void polynomial_sub_torus_polynomials(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
+  #ifdef AVX512_OPT
+  __m512i * a = (__m512i *) in1->coeffs;
+  __m512i * b = (__m512i *) in2->coeffs;
+  __m512i * c = (__m512i *) out->coeffs;
+  for (size_t i = 0; i < in2->N/8; i++){
+    c[i] = _mm512_sub_epi64(a[i], b[i]);
+  }
+  #else
   for (size_t i = 0; i < in2->N; i++){
     out->coeffs[i] = in1->coeffs[i] - in2->coeffs[i];
   }
+  #endif
 }
 
 /* out -= in */
 void polynomial_subto_torus_polynomial(TorusPolynomial out, TorusPolynomial in){
-  for (size_t i = 0; i < in->N; i++){
-    out->coeffs[i] -= in->coeffs[i];
-  }
+  polynomial_sub_torus_polynomials(out, out, in);
 }
 
 /* out = in*X^a */

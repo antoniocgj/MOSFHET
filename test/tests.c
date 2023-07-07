@@ -8,8 +8,6 @@ TLWE_Key _glb_debug_tlwe_key;
 TLWE_Key _glb_debug_tlwe_key2;
 
 
-
-
 // TEST Macros
 #ifdef TORUS32
 #define TEST_ASSERT_TORUS_WITHIN_MESSAGE(A, B, C, D) TEST_ASSERT_HEX32_WITHIN_MESSAGE(((A)>>32), (B), (C), (D))
@@ -36,23 +34,19 @@ const int t = 2, base_bit = 6;
 // Note: BR Unfolding requires n to be divisible by the unfolding value. Example: In SET_1, you need to change n from 585 to 592, since 8|592.
 
 // From eprint 2022/704 table 4
-#define SET_4
+#define SET_2
 // set 1 (set 1 should fail most tests)
 #if defined(SET_1)
 const int n = 585, N = 1024, k = 1, Bg_bit = 8, l = 2, base_bit = 2, t = 5;
 const double lwe_std_dev = 9.141776004202573E-5, rlwe_std_dev = 2.989040792967434E-8;
 #elif defined(SET_2)
 // set 2
-const int n = 720, N = 2048, k = 1, Bg_bit = 23, l = 1, base_bit = 4 , t = 5;
+const int n = 744, N = 2048, k = 1, Bg_bit = 23, l = 1, base_bit = 3 , t = 5;
 const double lwe_std_dev = 7.747831515176779e-6, rlwe_std_dev = 2.2148688116005568e-16;
 #elif defined(SET_3)
 // set 3
-const int n = 829, N = 4096, k = 1, Bg_bit = 23, l = 1, base_bit = 2, t = 11;
+const int n = 807, N = 4096, k = 1, Bg_bit = 22, l = 1, base_bit = 3, t = 5;
 const double lwe_std_dev = 1.0562341599676662e-6, rlwe_std_dev = 2.168404344971009e-19;
-#elif defined(SET_K3)
-// set k = 3
-const int n = 863, N = 512, k = 3, Bg_bit = 19, l = 1, base_bit = 7, t = 2;
-const double lwe_std_dev = 5.672940231307811e-07, rlwe_std_dev = 2.9555715338799682e-12;
 #else
 // From TFHEpp
 // LWE params
@@ -198,9 +192,6 @@ void test_trlwe(){
 
 void test_compressed_trlwe(){
   SKIP_IF_TORUS32
-#ifdef USE_VAES
-  aes_setup_rnd_seed();
-#endif
   TRLWE_Key key = trlwe_new_binary_key(N, k, rlwe_std_dev);
   TorusPolynomial poly_1 = polynomial_new_torus_polynomial(N);
   generate_random_bytes(N*sizeof(Torus), (uint8_t *) poly_1->coeffs);
@@ -234,52 +225,6 @@ void test_compressed_trlwe(){
   free_trlwe(c_1);
   free_trlwe(c_2);
   free_trlwe(c_3);
-  free_trlwe_key(key);
-}
-
-void test_compressed_trlwe_rotate_vaes(){
-  SKIP_IF_TORUS32
-#ifdef USE_VAES
-  aes_setup_rnd_seed();
-#endif
-  TRLWE_Key key = trlwe_new_binary_key(N, k, rlwe_std_dev);
-  TorusPolynomial poly_1 = polynomial_new_torus_polynomial(N);
-  generate_random_bytes(N*sizeof(Torus), (uint8_t *) poly_1->coeffs);
-
-  TorusPolynomial poly_2 = polynomial_new_torus_polynomial(N);
-  generate_random_bytes(N*sizeof(Torus), (uint8_t *) poly_2->coeffs);
-  
-  TorusPolynomial poly_3 = polynomial_new_torus_polynomial(N);
-  generate_random_bytes(N*sizeof(Torus), (uint8_t *) poly_3->coeffs);
-  
-  TorusPolynomial poly_res = polynomial_new_torus_polynomial(N);
-  TorusPolynomial poly_sum = polynomial_new_torus_polynomial(N);
-  TRLWE c_1 = trlwe_new_sample(poly_1, key);
-  TRLWE c_2 = trlwe_new_compressed_sample(poly_2, key);
-  polynomial_copy_torus_polynomial(poly_sum, c_1->b);
-#ifdef USE_VAES
-  trlwe_mul_by_xai_addto_comp_vaes(c_1, c_2, 458);
-#endif
-  torus_polynomial_mul_by_xai_addto(poly_1, poly_2, 458);
-  torus_polynomial_mul_by_xai_addto(poly_sum, c_2->b, 458);
-  trlwe_phase(poly_res, c_1, key);
-  TEST_ASSERT_TORUS_ARRAY_WITHIN_MESSAGE(1UL << 44, poly_sum->coeffs, c_1->b->coeffs, N, "Compressed TRLWE->b mul by xai failed.");
-  TEST_ASSERT_TORUS_ARRAY_WITHIN_MESSAGE(1UL << 44, poly_1->coeffs, poly_res->coeffs, N, "Compressed TRLWE mul by xai failed.");
-
-  // TRLWE c_3 = trlwe_new_compressed_sample(poly_3, key);
-  // trlwe_compressed_subto(c_1, c_3);
-  // polynomial_sub_torus_polynomials(poly_sum, poly_sum, poly_3);
-  // trlwe_phase(poly_res, c_1, key);
-  // TEST_ASSERT_TORUS_ARRAY_WITHIN_MESSAGE(1UL << 44, poly_sum->coeffs, poly_res->coeffs, N, "Compressed TRLWE subto failed.");
-
-  free_polynomial(poly_1);
-  free_polynomial(poly_2);
-  free_polynomial(poly_3);
-  free_polynomial(poly_sum);
-  free_polynomial(poly_res);
-  free_trlwe(c_1);
-  free_trlwe(c_2);
-  // free_trlwe(c_3);
   free_trlwe_key(key);
 }
 
@@ -320,13 +265,14 @@ void test_poly_DFT_mul(){
   polynomial_DFT_to_torus(poly_res_1, poly_dft_3);
   polynomial_naive_mul_addto_torus(poly_res_2, poly_1, poly_2);
   TEST_ASSERT_TORUS_ARRAY_WITHIN_MESSAGE(1UL << 40, poly_res_2->coeffs, poly_res_1->coeffs, N, "DFT mul_addto failed.");
+
   free_polynomial(poly_1);
   free_polynomial(poly_2);
   free_polynomial(poly_res_1);
   free_polynomial(poly_res_2);
-  free_polynomial(poly_dft_1);
-  free_polynomial(poly_dft_2);
-  free_polynomial(poly_dft_3);
+  free_DFT_polynomial(poly_dft_1);
+  free_DFT_polynomial(poly_dft_2);
+  free_DFT_polynomial(poly_dft_3);
 }
 
 
@@ -1880,6 +1826,45 @@ void test_functional_mv_bootstrap(){
   free_trlwe_array(bk_out, 5);
 }
 
+
+void test_functional_mv_bootstrap_UBR(){
+  TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
+  TLWE_Key key_tlwe_out = tlwe_new_binary_key(k*N, rlwe_std_dev);
+  TRLWE_Key key_trlwe = trlwe_new_binary_key(N, k, rlwe_std_dev);
+  trlwe_extract_tlwe_key(key_tlwe_out, key_trlwe);
+  _glb_debug_trlwe_key = key_trlwe;
+  _glb_debug_tlwe_key = key_tlwe_out;
+
+  TRGSW_Key trgsw_key = trgsw_new_key(key_trlwe, l, Bg_bit);
+  Bootstrap_Key bk_key = new_bootstrap_key(trgsw_key, key_tlwe, 4);
+
+  Torus in[5];
+  TLWE c[6];
+  generate_random_bytes(sizeof(Torus)*4, (uint8_t *) in);
+  for (size_t i = 0; i < 5; i++){
+    c[i] = tlwe_new_sample(in[i], key_tlwe_out);
+  }
+  c[5] = tlwe_new_sample(double2torus(1./8), key_tlwe);
+
+  
+  Torus lut[4];
+  TRLWE tv = trlwe_alloc_new_sample(k, N);
+  generate_random_bytes(sizeof(Torus)*4, (uint8_t *) lut);
+  trlwe_torus_packing(tv, lut, 4);
+
+  TRGSW_DFT * sa = trgsw_alloc_new_DFT_sample_array(n/4, l, Bg_bit, 1, N);
+  multivalue_bootstrap_UBR_phase1(sa, c[5], bk_key);
+  multivalue_bootstrap_UBR_phase2(c[4], tv, c[5], sa,  bk_key, 4);
+
+  TEST_ASSERT_TORUS_WITHIN_MESSAGE(1UL << 58, lut[1], tlwe_phase(c[4], key_tlwe_out), "Multi value Bootstrap UBR with cleartext LUT failed.");
+  free_tlwe_key(key_tlwe);
+  free_tlwe_key(key_tlwe_out);
+  free_trlwe_key(key_trlwe);
+  free_trgsw_key(trgsw_key);
+  free_bootstrap_key(bk_key);
+  for (size_t i = 0; i < 6; i++) free_tlwe(c[i]);
+}
+
 void test_io_priv(){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
   TRLWE_Key key_trlwe = trlwe_new_binary_key(N, k, rlwe_std_dev);
@@ -2026,6 +2011,9 @@ int main(int argc, char const *argv[])
   // RUN_TEST(test_io_pub);
   // RUN_TEST(test_io_priv);
   // RUN_TEST(test_FDFB_CLOT21_3);
+  RUN_TEST(test_functional_mv_bootstrap_UBR);
+  RUN_TEST(test_trgsw_trlwe_mul);
+  // RUN_TEST(test_compressed_trlwe_DFT); doesn't work
   RUN_TEST(test_normal_generator);
   RUN_TEST(test_tlwe);
   RUN_TEST(test_tlwe_ks);
@@ -2040,7 +2028,6 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trgsw_sub);
   RUN_TEST(test_trgsw_mul_by_xai);
   RUN_TEST(test_trgsw_dft);
-  RUN_TEST(test_trgsw_trlwe_mul);
   RUN_TEST(test_trgsw_mul);
   RUN_TEST(test_functional_mv_bootstrap);
   RUN_TEST(test_programmable_bootstrap);
@@ -2055,7 +2042,6 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trlwe_poly_mul);
   RUN_TEST(test_public_mux);
   RUN_TEST(test_compressed_trlwe);
-  RUN_TEST(test_compressed_trlwe_rotate_vaes);
   RUN_TEST(test_trlwe_full_packing_ks);
   RUN_TEST(test_multivalue_bootstrap_CLOT21);
   RUN_TEST(test_trlwe_packing_ks);

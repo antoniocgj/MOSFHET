@@ -131,12 +131,11 @@ void blind_rotate_unfolded(TRLWE tv, Torus * a, TRGSW * s, int size, int unfoldi
   for (size_t i = 0; i < size; i+=unfolding){
     trgsw_copy(xai, s[i*final_exp]);
     for (size_t j = 1; j < key_exp; j++){
-      int a_i = 0;
+      Torus a_i = 0;
       for (size_t u = 0, j_ = j; u < unfolding; u++, j_>>=1){
-        if(j_&1) a_i += torus2int(a[i + u], log_N2);
+        if(j_&1) a_i += a[i + u];
       } 
-      if(!a_i) continue;
-      trgsw_mul_by_xai_addto(xai, s[i*final_exp + j], a_i);
+      trgsw_mul_by_xai_addto(xai, s[i*final_exp + j], torus2int(a_i, log_N2));
     }
     trgsw_to_DFT(xai_DFT, xai);
     trgsw_mul_trlwe_DFT(tmp, tv, xai_DFT);
@@ -146,6 +145,48 @@ void blind_rotate_unfolded(TRLWE tv, Torus * a, TRGSW * s, int size, int unfoldi
   free_trlwe(tmp);
   free_trgsw(xai);
   free_trgsw(xai_DFT);
+}
+
+// multi value bootstrapping based on the unfolded blind rotate
+void multivalue_bootstrap_UBR_phase1(TRGSW_DFT * out, TLWE in, Bootstrap_Key key){
+  const TRGSW * s = key->su;
+  const Torus * a = in->a;
+  const int N = s[0]->samples[0]->b->N, log_N2 = (int) log2(2*N), k = s[0]->samples[0]->k, unfolding=key->unfolding, size=key->n;
+  assert(unfolding > 1);
+  TRLWE_DFT tmp = trlwe_alloc_new_DFT_sample(k, N);
+  TRGSW xai = trgsw_alloc_new_sample(s[0]->l, s[0]->Bg_bit, k, N);
+
+  const int key_exp = 1 << unfolding, final_exp = key_exp / unfolding; // expansion constants
+  uint64_t idx_out = 0;
+  for (size_t i = 0; i < size; i+=unfolding){
+    trgsw_copy(xai, s[i*final_exp]);
+    for (size_t j = 1; j < key_exp; j++){
+      Torus a_i = 0;
+      for (size_t u = 0, j_ = j; u < unfolding; u++, j_>>=1){
+        if(j_&1) a_i += a[i + u];
+      } 
+      trgsw_mul_by_xai_addto(xai, s[i*final_exp + j], torus2int(a_i, log_N2));
+    }
+    trgsw_to_DFT(out[idx_out++], xai);
+  }
+  free_trlwe(tmp);
+  free_trgsw(xai);
+}
+
+void multivalue_bootstrap_UBR_phase2(TLWE out, TRLWE tv, TLWE in, TRGSW_DFT * sa, Bootstrap_Key key, int torus_base){
+  const TRGSW * s = key->su;
+  const int N = s[0]->samples[0]->b->N, N2 = N*2, log_N2 = (int) log2(N2), k = s[0]->samples[0]->k, unfolding=key->unfolding, size=key->n;
+  TRLWE_DFT tmp = trlwe_alloc_new_DFT_sample(k, N);
+  TRLWE rotated_tv = trlwe_alloc_new_sample(k, N);
+  const Torus prec_offset = double2torus(1./(4*torus_base));
+  trlwe_mul_by_xai(rotated_tv, tv, N2 - torus2int(in->b + prec_offset, log_N2));
+  for (size_t i = 0; i < size/unfolding; i++){
+    trgsw_mul_trlwe_DFT(tmp, rotated_tv, sa[i]);
+    trlwe_from_DFT(rotated_tv, tmp);
+  }
+  trlwe_extract_tlwe(out, rotated_tv, 0);
+  free_trlwe(tmp);
+  free_trlwe(rotated_tv);
 }
 
 void functional_bootstrap_wo_extract(TRLWE out, TRLWE tv, TLWE in, Bootstrap_Key key, int torus_base){

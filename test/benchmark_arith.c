@@ -55,7 +55,7 @@ void print_poly_double(DFT_Polynomial p){
   printf("\n");
 }
 
-#define __REP 100000
+#define __REP 1000000
 
 int main(int argc, char const *argv[]){
   TorusPolynomial poly_1 = polynomial_new_torus_polynomial(N);
@@ -87,11 +87,15 @@ int main(int argc, char const *argv[]){
   MEASURE_TIME(__REP, "Torus to DFT: ", 
     polynomial_torus_to_DFT(poly_dft_1, poly_1);
   );
+
   MEASURE_TIME(__REP, "Torus to DFT: ", 
     polynomial_torus_to_DFT(poly_dft_2, poly_2);
   );
   MEASURE_TIME(__REP, "DFT Mul: ", 
-  polynomial_mul_DFT(poly_dft_3, poly_dft_1, poly_dft_2);
+    polynomial_mul_DFT(poly_dft_3, poly_dft_1, poly_dft_2);
+  );
+  MEASURE_TIME(__REP, "DFT Add: ", 
+    polynomial_add_DFT_polynomials(poly_dft_3, poly_dft_1, poly_dft_2);
   );
   MEASURE_TIME(__REP, "DFT to Torus: ", 
     polynomial_DFT_to_torus(poly_res_1, poly_dft_3);

@@ -414,7 +414,7 @@ void trgsw_mul_DFT(TRGSW_DFT out, TRGSW in1, TRGSW_DFT in2){
 
 void trgsw_mul_DFT2(TRGSW_DFT out, TRGSW_DFT in1, TRGSW_DFT in2){
   assert(out != in2);
-  const int N = in1->samples[0]->b->N, l = in2->l, k = in1->samples[0]->k;
+  const int N = in1->samples[0]->b->N, l = in1->l, k = in1->samples[0]->k;
   TRLWE tmp = trlwe_alloc_new_sample(k, N);
   for (size_t i = 0; i < (k+1)*l; i++){
     trlwe_from_DFT(tmp, in1->samples[i]);

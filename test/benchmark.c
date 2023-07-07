@@ -54,11 +54,11 @@ const int n = 585, N = 1024, k = 1, Bg_bit = 8, l = 2, base_bit = 2, t = 5;
 const double lwe_std_dev = 9.141776004202573E-5, rlwe_std_dev = 2.989040792967434E-8;
 #elif defined(SET_2)
 // set 2
-const int n = 720, N = 2048, k = 1, Bg_bit = 23, l = 1, base_bit = 4 , t = 5;
+const int n = 744, N = 2048, k = 1, Bg_bit = 23, l = 1, base_bit = 3 , t = 5;
 const double lwe_std_dev = 7.747831515176779e-6, rlwe_std_dev = 2.2148688116005568e-16;
 #elif defined(SET_3)
 // set 3
-const int n = 829, N = 4096, k = 1, Bg_bit = 23, l = 1, base_bit = 2, t = 11;
+const int n = 807, N = 4096, k = 1, Bg_bit = 22, l = 1, base_bit = 3, t = 5;
 const double lwe_std_dev = 1.0562341599676662e-6, rlwe_std_dev = 2.168404344971009e-19;
 #else
 // From TFHEpp
@@ -81,16 +81,17 @@ const int t = 8, base_bit = 4;
 #define _EXECS 100
 
 // Benchmark functions (some depend on others)
-#define BENCH_PRIV_KS
-#define BENCH_PACK1_KS
+// #define BENCH_PRIV_KS
+// #define BENCH_PACK1_KS
 // #define BENCH_LUT_KS
-// #define BENCH_MV_BOOTSTRAP
-// #define BENCH_TRGSW_BOOTSTRAP
-#define BENCH_CIRCUIT_BOOTSTRAP
+#define BENCH_MV_BOOTSTRAP
+#define BENCH_TRGSW_BOOTSTRAP
+// #define BENCH_CIRCUIT_BOOTSTRAP
 // #define BENCH_TENSOR_PROD
 // #define BENCH_FDFB
-// #define BENCH_UNFOLDING
+#define BENCH_UNFOLDING
 // #define BENCH_BOOTSTRAP_GA
+#define BENCH_UBR_MV_FB
 
 int main(int argc, char const *argv[]){
   TLWE_Key key_tlwe = tlwe_new_binary_key(n, lwe_std_dev);
@@ -100,9 +101,9 @@ int main(int argc, char const *argv[]){
   TRGSW_Key trgsw_key = trgsw_new_key(key_trlwe, l, Bg_bit);
   TLWE_KS_Key tlwe_ksk = tlwe_new_KS_key(key_tlwe, key_tlwe_out, t, base_bit); 
 
-  Torus in[_EXECS*4 + 1];
-  TLWE c[_EXECS*4 + 1];
+  Torus * in = safe_aligned_malloc(sizeof(Torus)*(_EXECS*4 + 1));
   generate_random_bytes(sizeof(Torus)*(_EXECS*4 + 1), (uint8_t *) in);
+  TLWE c[_EXECS*4 + 1];
   for (size_t i = 0; i < _EXECS*4 + 1; i++) c[i] = tlwe_new_sample(in[i], key_tlwe_out);
 
   TLWE sel = tlwe_new_sample(double2torus(1./8), key_tlwe);
@@ -279,6 +280,32 @@ int main(int argc, char const *argv[]){
   bk_key = new_bootstrap_key(trgsw_key, key_tlwe, 8);
   MEASURE_TIME("FB_U8", _EXECS, "Functional Bootstrap Unfold=8",
     functional_bootstrap(c[4], lut, sel, bk_key, 4);
+  );
+
+#endif
+
+#ifdef BENCH_UBR_MV_FB
+  TRGSW_DFT * sa = trgsw_alloc_new_DFT_sample_array(n/2, l, Bg_bit, 1, N);
+  free_bootstrap_key(bk_key);
+  
+  bk_key = new_bootstrap_key(trgsw_key, key_tlwe, 2);
+  multivalue_bootstrap_UBR_phase1(sa, sel, bk_key);
+  MEASURE_TIME("UBR_FB_U2", _EXECS, "UBR Functional Bootstrap Unfold=2",
+    multivalue_bootstrap_UBR_phase2(c[4], lut, sel, sa,  bk_key, 4);
+  );
+  free_bootstrap_key(bk_key);
+
+  bk_key = new_bootstrap_key(trgsw_key, key_tlwe, 4);
+  multivalue_bootstrap_UBR_phase1(sa, sel, bk_key);
+  MEASURE_TIME("UBR_FB_U4", _EXECS, "UBR Functional Bootstrap Unfold=4",
+    multivalue_bootstrap_UBR_phase2(c[4], lut, sel, sa,  bk_key, 4);
+  );
+  free_bootstrap_key(bk_key);
+
+  bk_key = new_bootstrap_key(trgsw_key, key_tlwe, 8);
+  multivalue_bootstrap_UBR_phase1(sa, sel, bk_key);
+  MEASURE_TIME("UBR_FB_U8", _EXECS, "UBR Functional Bootstrap Unfold=8",
+    multivalue_bootstrap_UBR_phase2(c[4], lut, sel, sa,  bk_key, 4);
   );
 
 #endif

@@ -56,7 +56,7 @@ void aes_prng(uint8_t *output, uint64_t outlen, const uint8_t *input,  uint64_t 
 #endif
 
 void get_rnd_from_hash(uint64_t amount, uint8_t * pointer){
-  uint64_t rnd[4];
+  uint64_t rnd[4] __attribute__ ((aligned(64)));
   generate_rnd_seed(rnd);
   #ifdef USE_SHAKE
   shake256(pointer, amount, (uint8_t *) rnd, 32);
@@ -66,7 +66,7 @@ void get_rnd_from_hash(uint64_t amount, uint8_t * pointer){
 }
 
 void get_rnd_from_buffer(uint64_t amount, uint8_t * pointer){
-  static uint8_t buffer[1024];
+  static uint8_t buffer[1024] __attribute__ ((aligned(64)));
   static int idx = 1024;
   if(amount > (1024 - idx)){
     idx = 0;
@@ -85,7 +85,7 @@ void generate_random_bytes(uint64_t amount, uint8_t * pointer){
     #define M_PI 3.14159265358979323846
 #endif
 double generate_normal_random(double sigma){
-  uint64_t rnd[2];
+  uint64_t rnd[2] __attribute__ ((aligned(64)));
   generate_random_bytes(16, (uint8_t *) rnd);
   return cos(2.*M_PI*torus2double(rnd[0]))*sqrt(-2.*log(torus2double(rnd[1])))*sigma;
 }
