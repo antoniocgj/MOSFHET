@@ -18,21 +18,16 @@ FFT_Processor_Spqlios new_FFT_Processor_Spqlios(const int32_t N){
     res->tables_direct = new_fft_table(N);
     res->tables_reverse = new_ifft_table(N);
     res->real_inout_direct = fft_table_get_buffer(res->tables_direct);
-    res->imag_inout_direct = res->real_inout_direct + res->Ns2;
     res->real_inout_rev = fft_table_get_buffer(res->tables_reverse);
-    res->imag_inout_rev = res->real_inout_rev + res->Ns2;
-    res->reva = (int32_t *) safe_malloc(res->Ns2 * sizeof(int32_t));
-    res->cosomegaxminus1 = (double *) safe_malloc(2 * res->_2N * sizeof(double));
-    res->sinomegaxminus1 = res->cosomegaxminus1 + res->_2N;
-    int32_t rev1 = rev(1, res->_2N);
-    int32_t rev3 = rev(3, res->_2N);
-    //printf("rev-interval: %d, %d\n",rev1,rev3);
-    for (int32_t revi = rev1; revi < rev3; revi++)
-        res->reva[revi - rev1] = rev(revi, res->_2N);
-    for (int32_t j = 0; j < res->_2N; j++) {
-        res->cosomegaxminus1[j] = cos(2 * M_PI * j / res->_2N) - 1.;
-        res->sinomegaxminus1[j] = sin(2 * M_PI * j / res->_2N);
-    }
+    return res;
+}
+
+FFT_Processor_Spqlios copy_FFT_Processor_Spqlios(FFT_Processor_Spqlios proc){
+    FFT_Processor_Spqlios res;
+    res = (FFT_Processor_Spqlios) safe_malloc(sizeof(*res));
+    memcpy(res, proc, sizeof(*proc));
+    res->real_inout_direct = (double *) safe_aligned_malloc(proc->N*sizeof(double));
+    res->real_inout_rev = (double *) safe_aligned_malloc(proc->N*sizeof(double));
     return res;
 }
 

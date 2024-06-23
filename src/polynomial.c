@@ -103,6 +103,22 @@ void polynomial_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_
   }
 }
 
+void polynomial_scale_and_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2, uint64_t scale){
+  #ifdef AVX512_OPT
+  __m512d * outv = (__m512d *) out->coeffs;
+  __m512d * in1v = (__m512d *) in1->coeffs;
+  __m512d * in2v = (__m512d *) in2->coeffs;
+  __m512d scalev = _mm512_set1_pd((double) scale);
+  for (size_t i = 0; i < in2->N/8; i++){
+    outv[i] = _mm512_fmadd_pd(in2v[i], scalev, in1v[i]);
+  }
+  #else
+  for (size_t i = 0; i < in2->N; i++){
+    out->coeffs[i] = in1->coeffs[i] + scale*in2->coeffs[i];
+  }
+  #endif
+}
+
 void polynomial_sub_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2){
   for (size_t i = 0; i < in2->N; i++){
     out->coeffs[i] = in1->coeffs[i] - in2->coeffs[i];
@@ -298,9 +314,16 @@ void polynomial_torus_scale2(TorusPolynomial out, TorusPolynomial in, uint64_t s
 #if defined(USE_SPQLIOS)
 #include "../src/fft/spqlios/spqlios-fft.h"
 __thread FFT_Processor_Spqlios fft_proc[32] = {NULL};
+FFT_Processor_Spqlios fft_proc_global[32] = {NULL};
 
 void init_fft(int N){
-  if(!fft_proc[N >> 10]) fft_proc[N >> 10] = new_FFT_Processor_Spqlios(N);
+  if(fft_proc[N >> 10]) return;
+  if(fft_proc_global[N >> 10]){ 
+    fft_proc[N >> 10] = copy_FFT_Processor_Spqlios(fft_proc_global[N >> 10]);
+  }else{
+    fft_proc[N >> 10] = new_FFT_Processor_Spqlios(N);
+    fft_proc_global[N >> 10] = fft_proc[N >> 10];
+  }
 }
 #else
 #include "./fft/ffnt/ffnt.h"

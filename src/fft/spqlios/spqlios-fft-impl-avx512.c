@@ -73,13 +73,9 @@ void *new_fft_table(int32_t nn) {
   int32_t n = 2 * nn;
   int32_t ns4 = n / 4;
   FFT_PRECOMP *reps = (FFT_PRECOMP *) safe_aligned_malloc(sizeof(FFT_PRECOMP));
-  void *buf = safe_aligned_malloc(n * 8 + nn * 8);
-  // uint64_t aligned_addr = (((uint64_t) buf) + 31) & 0xFFFFFFFFFFFFFFE0l;
-  uint64_t aligned_addr = (uint64_t) buf;
   reps->n = n;
-  reps->aligned_trig_tables = (double *) aligned_addr;
-  reps->aligned_data = (double *) (aligned_addr + n * 8);
-  reps->buf = buf;
+  reps->aligned_trig_tables = (double *) safe_aligned_malloc(n*sizeof(double)); 
+  reps->aligned_data = (double *) safe_aligned_malloc(nn*sizeof(double));
   double *ptr = reps->aligned_trig_tables;
   // first iteration
   const int32_t j_0 = n / 8;
@@ -253,13 +249,9 @@ void *new_ifft_table(int32_t nn) {
   int32_t n = 2 * nn;
   int32_t ns4 = n / 4;
   IFFT_PRECOMP *reps = (IFFT_PRECOMP *) safe_aligned_malloc(sizeof(IFFT_PRECOMP));
-  void *buf = safe_aligned_malloc(n * 8 + nn * 8);
-  // uint64_t aligned_addr = (((uint64_t) buf) + 31) & 0xFFFFFFFFFFFFFFE0l;
-  uint64_t aligned_addr = (uint64_t) buf;
   reps->n = n;
-  reps->aligned_trig_tables = (double *) aligned_addr;
-  reps->aligned_data = (double *) (aligned_addr + n * 8);
-  reps->buf = buf;
+  reps->aligned_trig_tables = (double *) safe_aligned_malloc(n*sizeof(double)); 
+  reps->aligned_data = (double *) safe_aligned_malloc(nn*sizeof(double));
   reps->n = n;
   double *ptr = reps->aligned_trig_tables;
   //first iteration

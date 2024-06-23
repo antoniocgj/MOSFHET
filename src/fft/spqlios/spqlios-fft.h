@@ -29,17 +29,13 @@ typedef struct _FFT_Processor_Spqlios {
     int32_t N;
     int32_t Ns2;
     double *real_inout_direct;
-    double *imag_inout_direct;
     double *real_inout_rev;
-    double *imag_inout_rev;
     void *tables_direct;
     void *tables_reverse;
-    double *cosomegaxminus1;
-    double *sinomegaxminus1;
-    int32_t *reva;
 } * FFT_Processor_Spqlios;
 
 FFT_Processor_Spqlios new_FFT_Processor_Spqlios(const int32_t N);
+FFT_Processor_Spqlios copy_FFT_Processor_Spqlios(FFT_Processor_Spqlios proc);
 
 void execute_reverse_int(double *res, const int32_t *a, FFT_Processor_Spqlios proc);
 void execute_reverse_torus32(double *res, const uint32_t *a, FFT_Processor_Spqlios proc);

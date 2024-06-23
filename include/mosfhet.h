@@ -192,6 +192,7 @@ void polynomial_permute(TorusPolynomial out, TorusPolynomial in, uint64_t gen);
 void polynomial_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2);
 void polynomial_decompose_i(TorusPolynomial out, TorusPolynomial in, int Bg_bit, int l, int i);
 void polynomial_torus_scale2(TorusPolynomial out, TorusPolynomial in, uint64_t scale);
+void polynomial_scale_and_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2, uint64_t scale);
 
 /* TLWE */
 TLWE_Key tlwe_alloc_key(int n, double sigma);
@@ -290,6 +291,8 @@ void trlwe_tensor_prod(TRLWE out, TRLWE in1, TRLWE in2, int delta, TRLWE_KS_Key 
 void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE_KS_Key rl_key);
 void trlwe_torus_packing_many_LUT(TRLWE out, Torus * in, int lut_size, int n_luts);
 void trlwe_eval_automorphism(TRLWE out, TRLWE in, uint64_t gen, TRLWE_KS_Key ks_key);
+void trlwe_extract_tlwe_addto(TLWE out, TRLWE in, int idx);
+void trlwe_extract_tlwe_subto(TLWE out, TRLWE in, int idx);
 
 /* TRLWE Compressed */
 TRLWE trlwe_new_compressed_sample(TorusPolynomial m, TRLWE_Key key);

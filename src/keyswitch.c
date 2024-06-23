@@ -50,6 +50,7 @@ TRLWE_KS_Key * trlwe_new_priv_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t,
 }
 
 void trlwe_priv_keyswitch_2(TRLWE out, TRLWE in, TRLWE_KS_Key * ks_key){
+  assert(in->k == 1);
   TRLWE tmp = trlwe_alloc_new_sample(in->k, in->b->N);
   polynomial_negate_torus_polynomial(tmp->a[0], in->b);
   memset(tmp->b->coeffs, 0, sizeof(Torus)*tmp->b->N);
