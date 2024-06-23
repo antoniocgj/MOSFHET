@@ -107,8 +107,10 @@ TRLWE_Key trlwe_alloc_key(int N, int k, double sigma){
   res->k = k;
   res->sigma = sigma;
   res->s = (IntPolynomial*) safe_malloc(k*sizeof(IntPolynomial));
+  res->s_dft = (DFT_Polynomial*) safe_malloc(k*sizeof(DFT_Polynomial));
   for (size_t i = 0; i < k; i++){
     res->s[i] = polynomial_new_torus_polynomial(N);  
+    res->s_dft[i] = polynomial_new_DFT_polynomial(N);  
   }
   return res;
 }
@@ -121,13 +123,54 @@ TRLWE_Key trlwe_new_bounded_key(int N, int k, uint64_t bound, double sigma){
     for (size_t j = 0; j < N; j++){
       res->s[i]->coeffs[j] &= (bound - 1);
       res->s[i]->coeffs[j] -= (bound >> 1) - 1;
-    }    
+    }  
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);  
   }
   return res;
 }
 
 TRLWE_Key trlwe_new_binary_key(int N, int k, double sigma){
   return trlwe_new_bounded_key(N, k, 2, sigma);
+}
+
+
+void gen_sparse_ternary_array(uint64_t * out, uint64_t size, uint64_t h){
+  memset(out, 0, sizeof(uint64_t)*size);
+  uint64_t hw = 0, val = 1, * rnd_buffer;
+  const uint64_t buffer_size = h*10;
+  rnd_buffer = (uint64_t *) safe_aligned_malloc(sizeof(uint64_t)*buffer_size);
+  while(hw < h){
+    generate_random_bytes(sizeof(uint64_t)*buffer_size, (uint8_t *) rnd_buffer); 
+    uint64_t i = 0; 
+    while (i < buffer_size && hw < h){
+      const uint64_t idx = (rnd_buffer[i++] & (size - 1));
+      if(out[idx]) continue;
+      out[idx] = val;
+      val *= -1;
+      hw++;
+    }
+  }
+  free(rnd_buffer);
+}
+
+TRLWE_Key trlwe_new_ternary_key(int N, int k, int h, double sigma){
+  TRLWE_Key res = trlwe_alloc_key(N, k, sigma);
+  for (size_t i = 0; i < k; i++){
+    gen_sparse_ternary_array(res->s[i]->coeffs, N, h);
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
+}
+
+TRLWE_Key trlwe_new_gaussian_key(int N, int k, double key_sigma, double noise_sigma){
+  TRLWE_Key res = trlwe_alloc_key(N, k, noise_sigma);
+  for (size_t i = 0; i < k; i++){
+    for (size_t j = 0; j < N; j++){
+      res->s[i]->coeffs[j] = (uint64_t)((int64_t) generate_normal_random(key_sigma));
+    }
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
 }
 
 void trlwe_save_key(FILE * fd, TRLWE_Key key){
@@ -148,6 +191,7 @@ TRLWE_Key trlwe_load_new_key(FILE * fd){
   TRLWE_Key key = trlwe_alloc_key(N, k, sigma);
   for (size_t i = 0; i < key->k; i++){
     fread(key->s[i]->coeffs, sizeof(Torus), key->s[0]->N, fd);
+    polynomial_torus_to_DFT(key->s_dft[i], key->s[i]);  
   }
   return key;
 }
@@ -223,6 +267,18 @@ void trlwe_phase(TorusPolynomial out, TRLWE in, TRLWE_Key key){
     polynomial_mul_addto_torus(out, in->a[i], key->s[i]);
   }
   polynomial_sub_torus_polynomials(out, in->b, out);
+}
+
+void trlwe_DFT_phase(TorusPolynomial out, TRLWE_DFT in, TRLWE_Key key){
+  const int N = out->N, k = in->k, byte_size = sizeof(Torus) * N;
+  DFT_Polynomial tmp = polynomial_new_DFT_polynomial(N);
+  memset(tmp->coeffs, 0, byte_size);
+  for (size_t i = 0; i < k; i++){
+    polynomial_mul_addto_DFT(tmp, in->a[i], key->s_dft[i]);
+  }
+  polynomial_sub_DFT_polynomials(tmp, in->b, tmp);
+  polynomial_DFT_to_torus(out, tmp);
+  free_DFT_polynomial(tmp);
 }
 
 void trlwe_add(TRLWE out, TRLWE in1, TRLWE in2){

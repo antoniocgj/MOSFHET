@@ -147,6 +147,27 @@ void tlwe_add(TLWE out, TLWE in1, TLWE in2){
   out->b = in1->b + in2->b;
 }
 
+void tlwe_scale(TLWE out, TLWE in1, Torus in2){
+  for (size_t i = 0; i < in1->n; i++){
+    out->a[i] = in1->a[i]*in2;
+  }
+  out->b = in1->b * in2;
+}
+
+void tlwe_scale_addto(TLWE out, TLWE in1, Torus in2){
+  for (size_t i = 0; i < in1->n; i++){
+    out->a[i] += in1->a[i]*in2;
+  }
+  out->b += in1->b * in2;
+}
+
+void tlwe_scale_subto(TLWE out, TLWE in1, Torus in2){
+  for (size_t i = 0; i < in1->n; i++){
+    out->a[i] -= in1->a[i]*in2;
+  }
+  out->b -= in1->b * in2;
+}
+
 void tlwe_addto(TLWE out, TLWE in){
   tlwe_add(out, out, in);
 }
@@ -185,6 +206,24 @@ TLWE_KS_Key tlwe_new_KS_key(TLWE_Key out_key, TLWE_Key in_key, int t, int base_b
       for (size_t k = 0; k < base - 1; k++){
         res->s[i][j][k] = tlwe_new_sample(in_key->s[i] * (k + 1) * (1ULL << (bit_size - (j + 1) * base_bit)), out_key);
       }
+    }
+  }
+  return res;
+}
+
+TLWE_KS_Key_m tlwe_new_KS_key_no_precomp(TLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
+  const int bit_size = sizeof(Torus)*8;
+  TLWE_KS_Key_m res;
+  res = (TLWE_KS_Key_m) safe_malloc(sizeof(*res));
+  res->base_bit = base_bit;
+  res->t = t;
+  res->n = in_key->n;
+
+  res->s = (TLWE **) safe_malloc(sizeof(TLWE**) * in_key->n);
+  for (size_t i = 0; i < in_key->n; i++){
+    res->s[i] = (TLWE *) safe_malloc(sizeof(TLWE*) * t);
+    for (size_t j = 0; j < t; j++){
+      res->s[i][j] = tlwe_new_sample(in_key->s[i] * (1ULL << (bit_size - (j + 1) * base_bit)), out_key);
     }
   }
   return res;
@@ -259,6 +298,23 @@ void tlwe_keyswitch(TLWE out, TLWE in, TLWE_KS_Key ks_key){
     for (size_t j = 0; j < ks_key->t; j++) {
       const Torus aij = (ai >> (bit_size - (j + 1) * ks_key->base_bit)) & mask;
       if (aij != 0) tlwe_subto(out, ks_key->s[i][j][aij - 1]);
+    }
+  }
+}
+
+void tlwe_keyswitch_no_precomp(TLWE out, TLWE in, TLWE_KS_Key_m ks_key){
+  const int bit_size = sizeof(Torus)*8;
+  const Torus prec_offset = 1ULL << (bit_size - (1 + ks_key->base_bit * ks_key->t));
+  const Torus mask = (1ULL << ks_key->base_bit) - 1;
+  assert(out->n == ks_key->s[0][0]->n);
+  uint64_t offset = 1ULL << (bit_size - ks_key->t * ks_key->base_bit - 1);
+
+  tlwe_noiseless_trivial_sample(out, in->b);
+  for (size_t i = 0; i < in->n; i++) {
+    const Torus ai = in->a[i] + prec_offset;
+    for (size_t j = 0; j < ks_key->t; j++) {
+      const Torus aij = ((ai+offset) >> (bit_size - (j + 1) * ks_key->base_bit)) & mask;
+      tlwe_scale_subto(out, ks_key->s[i][j], aij);
     }
   }
 }

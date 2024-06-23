@@ -66,8 +66,8 @@ void get_rnd_from_hash(uint64_t amount, uint8_t * pointer){
 }
 
 void get_rnd_from_buffer(uint64_t amount, uint8_t * pointer){
-  static uint8_t buffer[1024] __attribute__ ((aligned(64)));
-  static int idx = 1024;
+  static __thread uint8_t buffer[1024] __attribute__ ((aligned(64)));
+  static __thread int idx = 1024;
   if(amount > (1024 - idx)){
     idx = 0;
     get_rnd_from_hash(1024, buffer);
@@ -104,7 +104,8 @@ uint64_t _glb_mem_count = 0;
 void * safe_malloc(size_t size){
   void *ptr = malloc(size);
   if (!ptr && (size > 0)) {
-    perror("malloc failed!");
+    perror("malloc failed");
+    assert(0);
     exit(EXIT_FAILURE);
   }
   // memset(ptr, 0, size); 

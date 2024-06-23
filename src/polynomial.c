@@ -228,7 +228,7 @@ void polynomial_naive_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, 
 void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
   const int N = in2->N;
   // alloc temporaries
-  static DFT_Polynomial * tmp_pool[32] = {NULL}; 
+  static __thread DFT_Polynomial * tmp_pool[32] = {NULL}; 
   if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_array_of_polynomials_DFT(N, 3);
   DFT_Polynomial * tmp = tmp_pool[N>>10];
   // dft mul
@@ -241,7 +241,7 @@ void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynom
 void polynomial_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
   const int N = in2->N;
   // alloc temporaries
-  static TorusPolynomial tmp_pool[32] = {NULL}; 
+  static __thread TorusPolynomial tmp_pool[32] = {NULL}; 
   if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_torus_polynomial(N);
   TorusPolynomial tmp = tmp_pool[N>>10];
   polynomial_mul_torus(tmp, in1, in2);
@@ -287,17 +287,24 @@ void polynomial_torus_scale(TorusPolynomial out, TorusPolynomial in, int log_sca
   }
 }
 
+/* out[i] = in[i] * scale */
+void polynomial_torus_scale2(TorusPolynomial out, TorusPolynomial in, uint64_t scale){
+  for (size_t i = 0; i < in->N; i++){
+    out->coeffs[i] = out->coeffs[i] * scale;
+  }
+}
+
 
 #if defined(USE_SPQLIOS)
 #include "../src/fft/spqlios/spqlios-fft.h"
-FFT_Processor_Spqlios fft_proc[32] = {NULL};
+__thread FFT_Processor_Spqlios fft_proc[32] = {NULL};
 
 void init_fft(int N){
   if(!fft_proc[N >> 10]) fft_proc[N >> 10] = new_FFT_Processor_Spqlios(N);
 }
 #else
 #include "./fft/ffnt/ffnt.h"
-FFT_Processor_FFNT fft_proc[8] = {NULL};
+__thread FFT_Processor_FFNT fft_proc[32] = {NULL};
 
 void init_fft(int N){
   if(!fft_proc[N >> 10]) fft_proc[N >> 10] = new_FFT_Processor_FFNT(N);
@@ -305,6 +312,7 @@ void init_fft(int N){
 #endif
 
 void polynomial_DFT_to_torus(TorusPolynomial out, const DFT_Polynomial in){
+  init_fft(in->N);
 #ifdef TORUS32
   execute_direct_torus32(out->coeffs, in->coeffs, fft_proc[in->N >> 10]);
 #else
@@ -384,7 +392,7 @@ void polynomial_full_mul_with_scale(TorusPolynomial out, TorusPolynomial in1, To
 // Galois transform: x^i to x^(gen*i)
 // Code adapted from Lattigo 
 // Src: https://github.com/tuneinsight/lattigo/blob/master/ring/ring_automorphism.go, Apache 2 License
-void polynomial_permute(TorusPolynomial restrict out, TorusPolynomial restrict in, uint64_t gen){
+void polynomial_permute(TorusPolynomial out, TorusPolynomial in, uint64_t gen){
   const uint64_t N = in->N, mask = N - 1;
   assert(out != in);
   for (size_t i = 0; i < N; i++){

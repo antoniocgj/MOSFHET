@@ -1,5 +1,7 @@
 #pragma once
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -22,7 +24,7 @@ void fft(const void *tables, double *data);
 void ifft(const void *tables, double *data);
 
 
-typedef struct{
+typedef struct _FFT_Processor_Spqlios {
     int32_t _2N;
     int32_t N;
     int32_t Ns2;
@@ -44,3 +46,6 @@ void execute_reverse_torus32(double *res, const uint32_t *a, FFT_Processor_Spqli
 void execute_direct_torus32(uint32_t *res, const double *a, FFT_Processor_Spqlios proc);
 void execute_reverse_torus64(double* res, const uint64_t* a, FFT_Processor_Spqlios proc);
 void execute_direct_torus64(uint64_t* res, const double* a, FFT_Processor_Spqlios proc);
+#ifdef __cplusplus
+}
+#endif

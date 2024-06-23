@@ -19,13 +19,13 @@ void _debug_print128(char * msg, __uint128_t x){
 }
 
 
-void poly_add_u128(__uint128_t * restrict out, __uint128_t * restrict p, __uint128_t * restrict p2, int size){
+void poly_add_u128(__uint128_t * out, __uint128_t * p, __uint128_t * p2, int size){
   for (size_t i = 0; i < size; i++){
     out[i] = p[i] + p2[i];
   }
 }
 
-void poly_mul_int64to128(__uint128_t * restrict out, uint64_t * restrict p, uint64_t * restrict p2, int size){
+void poly_mul_int64to128(__uint128_t * out, uint64_t * p, uint64_t * p2, int size){
   const int new_size = size*2 - 1;
   memset(out, 0, sizeof(__uint128_t) * new_size);
   for (size_t i = 0; i < size; i++){
@@ -35,7 +35,7 @@ void poly_mul_int64to128(__uint128_t * restrict out, uint64_t * restrict p, uint
   }
 }
 
-void poly_mul_u128(__uint128_t * restrict out, __uint128_t * restrict p, __uint128_t * restrict p2, int size){
+void poly_mul_u128(__uint128_t * out, __uint128_t * p, __uint128_t * p2, int size){
   const int new_size = size*2 - 1;
   memset(out, 0, sizeof(__uint128_t) * new_size);
   for (size_t i = 0; i < size; i++){
@@ -58,7 +58,7 @@ void init_karatsuba(int size){
 }
  
 
-void _karatsuba(__uint128_t * restrict out, __uint128_t * restrict in1, __uint128_t * restrict in2, int size, int depth){
+void _karatsuba(__uint128_t * out, __uint128_t * in1, __uint128_t * in2, int size, int depth){
   if(depth > MAX_DEPTH){
     poly_mul_u128(out, in1, in2, size);
     return;

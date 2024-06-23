@@ -26,6 +26,7 @@ void print_m128(__m128i x){
   printf("%016lx %016lx\n", x64[0], x64[1]);
 }
 
+#if defined(AVX512_OPT) 
 void print_m512(__m512i x){
   const uint64_t * x64 = (uint64_t *) &x;
   for (size_t i = 0; i < 8; i++){
@@ -33,6 +34,7 @@ void print_m512(__m512i x){
   }
   printf("\n");  
 }
+#endif
 
 bool __glb_aes_setup = false;
 void setup_aes_prgn_key(__m128i * seed){  

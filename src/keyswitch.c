@@ -41,7 +41,7 @@ TRLWE_KS_Key * trlwe_new_priv_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, int t,
   TRLWE_Key tmp_key = trlwe_alloc_key(out_key->s[0]->N, out_key->k, out_key->sigma);
   polynomial_negate_torus_polynomial(tmp_key->s[0], out_key->s[0]);
   polynomial_mul_torus(tmp_key->s[0], tmp_key->s[0], in_key->s[0]);
-  TRLWE_KS_Key * res = safe_malloc(sizeof(TRLWE_KS_Key)*2);
+  TRLWE_KS_Key * res = (TRLWE_KS_Key *) safe_malloc(sizeof(TRLWE_KS_Key)*2);
   res[0] = trlwe_new_KS_key(out_key, tmp_key, t, base_bit);
   polynomial_negate_torus_polynomial(tmp_key->s[0], out_key->s[0]);
   res[1] = trlwe_new_KS_key(out_key, tmp_key, t, base_bit);

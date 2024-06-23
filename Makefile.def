@@ -1,6 +1,6 @@
 CC = gcc
 FLAGS = -Wall -Wno-unused-function -Wno-unused-result -funroll-all-loops -march=native -lm
-DEBUG_FLAGS = -O0 -g $(FLAGS)
+DEBUG_FLAGS = -O1 -g $(FLAGS)
 INCLUDE_DIRS = $(addprefix $(MOSFHET_DIR), /include)
 OPT_FLAGS = -O3 -fwhole-program -flto  $(FLAGS)
 LIB_FLAGS = -O3 $(FLAGS)
@@ -10,16 +10,16 @@ LD_LIBS =
 BUILD_LIBS = 
 TEST_FLAGS = $(OPT_FLAGS)
 FFT_LIB = spqlios_avx512
-A_PRGN = vaes
+A_PRNG = vaes
 ENABLE_VAES = true
 
-ifeq ($(A_PRGN),shake)
+ifeq ($(A_PRNG),shake)
 	FLAGS += -DUSE_SHAKE -DUSE_COMPRESSED_TRLWE
 	__SRC += trlwe_compressed.c
-else ifeq ($(A_PRGN),vaes)
+else ifeq ($(A_PRNG),vaes)
 	__SRC += trlwe_compressed_vaes.c
 	FLAGS += -DUSE_COMPRESSED_TRLWE
-else ifeq ($(A_PRGN),xoshiro)
+else ifeq ($(A_PRNG),xoshiro)
 	__SRC += trlwe_compressed.c
 	FLAGS += -DUSE_COMPRESSED_TRLWE
 endif

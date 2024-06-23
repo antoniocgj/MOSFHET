@@ -29,17 +29,17 @@ typedef uint64_t Torus;
 typedef int16_t Binary;
 
 /* Polynomials */
-typedef struct {
+typedef struct _TorusPolynomial {
   Torus * coeffs;
   int N;
 } * TorusPolynomial;
 
-typedef struct {
+typedef struct _DFT_Polynomial {
   double * coeffs;
   int N;
 } * DFT_Polynomial;
 
-typedef struct {
+typedef struct _BinaryPolynomial {
   Binary * coeffs;
   int N;
 } * BinaryPolynomial;
@@ -48,85 +48,91 @@ typedef TorusPolynomial IntPolynomial;
 typedef Torus Integer;
 
 /* TLWE */
-typedef struct {
+typedef struct _TLWE {
   Torus * a, b;
   int n;
 } * TLWE;
 
-typedef struct {
+typedef struct _TLWE_Key{
   Integer * s;
   int n;
   double sigma;
 } * TLWE_Key;
 
-typedef struct {
+typedef struct _TLWE_KS_Key{
   TLWE *** s;
   int base_bit, t, n;
 } * TLWE_KS_Key;
 
+typedef struct _TLWE_KS_Key_m{
+  TLWE ** s;
+  int base_bit, t, n;
+} * TLWE_KS_Key_m;
+
 /* TRLWE */
-typedef struct {
+typedef struct _TRLWE{
   TorusPolynomial * a, b;
   int k;
 } * TRLWE;
 
-typedef struct {
+typedef struct _TRLWE_DFT{
   DFT_Polynomial * a, b;
   int k;
 } * TRLWE_DFT;
 
-typedef struct {
+typedef struct _TRLWE_Key{
   IntPolynomial * s;
+  DFT_Polynomial * s_dft;
   int k;
   double sigma;
 } * TRLWE_Key;
 
-typedef struct {
+typedef struct _TRLWE_KS_Key {
   TRLWE_DFT ** s;
   int base_bit, t, k;
 } * TRLWE_KS_Key;
 
-typedef struct {
+typedef struct _LUT_Packing_KS_Key {
   TRLWE **** s;
   int base_bit, t, torus_base, n;
 } * LUT_Packing_KS_Key;
 
-typedef struct {
+typedef struct _Generic_KS_Key {
   TRLWE *** s;
   int base_bit, t, n, include_b;
 } * Generic_KS_Key;
 
 /* TRGSW */
-typedef struct {
+typedef struct _TRGSW {
   TRLWE * samples;
   int l, Bg_bit;
 } * TRGSW;
 
-typedef struct {
+typedef struct _TRGSW_DFT{
   TRLWE_DFT * samples;
   int l, Bg_bit;
 } * TRGSW_DFT;
 
-typedef struct {
+typedef struct _TRGSW_Key{
   TRLWE_Key trlwe_key;
   int l, Bg_bit;
 } * TRGSW_Key;
 
 /* Registers */
 
-typedef struct {
+typedef struct _TRGSW_REG{
   TRGSW_DFT positive, negative;
 } * TRGSW_REG;
 
 /* Bootstrap */
 
-typedef struct {
+typedef struct _Bootstrap_Key{
   TRGSW_DFT * s;
   TRGSW * su;
   int n, k, N, Bg_bit, l, unfolding;
 } * Bootstrap_Key;
 
-typedef struct {
+typedef struct _Bootstrap_GA_Key{
   TRGSW_DFT * s;
   TRGSW * su;
   TRLWE_KS_Key * ak;
@@ -185,6 +191,7 @@ void polynomial_full_mul_with_scale(TorusPolynomial out, TorusPolynomial in1, To
 void polynomial_permute(TorusPolynomial out, TorusPolynomial in, uint64_t gen);
 void polynomial_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2);
 void polynomial_decompose_i(TorusPolynomial out, TorusPolynomial in, int Bg_bit, int l, int i);
+void polynomial_torus_scale2(TorusPolynomial out, TorusPolynomial in, uint64_t scale);
 
 /* TLWE */
 TLWE_Key tlwe_alloc_key(int n, double sigma);
@@ -209,6 +216,8 @@ void trlwe_save_DFT_sample(FILE * fd, TRLWE_DFT c);
 Torus tlwe_phase(TLWE c, TLWE_Key key);
 void tlwe_add(TLWE out, TLWE in1, TLWE in2);
 void tlwe_addto(TLWE out, TLWE in);
+void tlwe_scale(TLWE out, TLWE in1, Torus in2);
+void tlwe_scale_addto(TLWE out, TLWE in1, Torus in2);
 void tlwe_sub(TLWE out, TLWE in1, TLWE in2);
 void tlwe_subto(TLWE out, TLWE in);
 void tlwe_negate(TLWE out, TLWE in);
@@ -219,10 +228,16 @@ void free_tlwe_array(TLWE * p, int count);
 void free_tlwe_key(TLWE_Key key);
 void free_tlwe_ks_key(TLWE_KS_Key key);
 void tlwe_mul(TLWE out, TLWE in1, TLWE in2, int delta, Generic_KS_Key ksk, TRLWE_KS_Key rlk);
+void tlwe_scale_subto(TLWE out, TLWE in1, Torus in2);
+TLWE_KS_Key_m tlwe_new_KS_key_no_precomp(TLWE_Key out_key, TLWE_Key in_key, int t, int base_bit);
+void tlwe_keyswitch_no_precomp(TLWE out, TLWE in, TLWE_KS_Key_m ks_key);
+
 
 /* TRLWE */
 TRLWE_Key trlwe_alloc_key(int N, int k, double sigma);
 TRLWE_Key trlwe_new_binary_key(int N, int k, double sigma);
+TRLWE_Key trlwe_new_ternary_key(int N, int k, int h, double sigma);
+TRLWE_Key trlwe_new_gaussian_key(int N, int k, double key_sigma, double noise_sigma);
 TRLWE_Key trlwe_new_bounded_key(int N, int k, uint64_t bound, double sigma);
 TRLWE_Key trlwe_load_new_key(FILE * fd);
 void trlwe_save_key(FILE * fd, TRLWE_Key key);
@@ -240,6 +255,7 @@ void trlwe_noiseless_trivial_sample(TRLWE out, TorusPolynomial m);
 TRLWE trlwe_new_sample(TorusPolynomial m, TRLWE_Key key);
 void trlwe_sample(TRLWE out, TorusPolynomial m, TRLWE_Key key);
 void trlwe_phase(TorusPolynomial out, TRLWE in, TRLWE_Key key);
+void trlwe_DFT_phase(TorusPolynomial out, TRLWE_DFT in, TRLWE_Key key);
 void trlwe_from_DFT(TRLWE out, TRLWE_DFT in);
 void trlwe_to_DFT(TRLWE_DFT out, TRLWE in);
 void trlwe_decompose(TorusPolynomial * out, TRLWE in, int Bg_bit, int l);
