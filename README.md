@@ -2,8 +2,6 @@
 
 MOSFHET is a research-oriented highly-optimized implementation of [TFHE](https://github.com/tfhe/tfhe/). It includes the main techniques proposed so far for improving performance or error rate in TFHE. The library is fully portable with optional optimizations for Intel AVX2, FMA, AVX-512, and VAES. 
 
-We are slowly adding more comments to the code and more examples to the [applications folder](applications/). For any questions or suggestions, please contact me at <antonio.guimaraes@ic.unicamp.br>.
-
 ## Implemented Techniques
 
 - The Functional [[1]](https://link.springer.com/chapter/10.1007/978-3-030-20951-3_20) or Programmable [[2]](https://link.springer.com/chapter/10.1007/978-3-030-78086-9_1) Bootstrap and its improved version [[3]](https://link.springer.com/chapter/10.1007/978-3-030-92078-4_23).
@@ -30,19 +28,23 @@ For more details, see our [paper](https://eprint.iacr.org/2022/515). It consider
 
 ## Build
 
-By default, we use the AVX-512 version of SPQLIOS for fast polynomial arithmetic. It requires [AVX-512 support](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512). You can use the option `FFT_LIB` to specify other libraries, and the option `A_PRGN` to choose the PRNG used to generate/expand `a` (options are: `shake`, `vaes`, `xoshiro`, and `no`).
+By default, we use the AVX-512 version of SPQLIOS for fast polynomial arithmetic. It requires [AVX-512 support](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions#CPUs_with_AVX-512). You can use the option `FFT_LIB` to specify other libraries, and the option `A_PRNG` to choose the PRNG used to generate/expand `a` (options are: `shake`, `vaes`, `xoshiro`, and `no`).
 
 Default compilation (using AVX-512 SPQLIOS):
 
 > `make`
 
-SPQLIOS (FMA):
+AVX2/FMA build (without AVX512 or VAES):
 
-> ```make FFT_LIB=spqlios```
+> ```make FFT_LIB=spqlios A_PRNG=none ENABLE_VAES=false```
+
+AVX2/FMA build (without AVX512 or VAES) with Xoshiro:
+
+> ```make FFT_LIB=spqlios A_PRNG=xoshiro ENABLE_VAES=false```
 
 FFNT library (pure-C, fully portable):
 
-> ```make FFT_LIB=ffnt```
+> ```make FFT_LIB=ffnt A_PRNG=none ENABLE_VAES=false```
 
 For other compiling options, see the [Makefile](Makefile) and [Makefile.def](Makefile.def). 
 
