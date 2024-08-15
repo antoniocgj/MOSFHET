@@ -2,6 +2,24 @@
 
 MOSFHET is a research-oriented highly-optimized implementation of [TFHE](https://github.com/tfhe/tfhe/). It includes the main techniques proposed so far for improving performance or error rate in TFHE. The library is fully portable with optional optimizations for Intel AVX2, FMA, AVX-512, and VAES. 
 
+## Citation
+
+```
+@article{guimaraes_mosfhet_2024,
+	title = {{MOSFHET}: {Optimized} {Software} for {FHE} over the {Torus}},
+	issn = {2190-8516},
+	url = {https://doi.org/10.1007/s13389-024-00359-z},
+	doi = {10.1007/s13389-024-00359-z},
+	journal = {Journal of Cryptographic Engineering},
+	author = {Guimarães, Antonio and Borin, Edson and Aranha, Diego F.},
+	month = jul,
+	year = {2024},
+}
+```
+
+[Paper](https://doi.org/10.1007/s13389-024-00359-z)
+[Eprint 2022/515](https://eprint.iacr.org/2022/515)
+
 ## Implemented Techniques
 
 - The Functional [[1]](https://link.springer.com/chapter/10.1007/978-3-030-20951-3_20) or Programmable [[2]](https://link.springer.com/chapter/10.1007/978-3-030-78086-9_1) Bootstrap and its improved version [[3]](https://link.springer.com/chapter/10.1007/978-3-030-92078-4_23).
@@ -78,22 +96,6 @@ To run the benchmark:
 > 
 > `make bench FFT_LIB=ffnt -B` 
 
-
-## Citation
-
-```
-@misc{cryptoeprint:2022:515,
-    author       = {Antonio Guimarães and
-		    Edson Borin and
-		    Diego F. Aranha},
-    title        = {MOSFHET: Optimized Software for FHE over the Torus},
-    howpublished = {Cryptology ePrint Archive, Report 2022/515},
-    year         = {2022},
-    note         = {\url{https://ia.cr/2022/515}},
-}
-```
-
-[The paper](https://eprint.iacr.org/2022/515) considers the [initial commit (0d58320559)]( https://github.com/antoniocgj/MOSFHET/tree/0d5832055900d1376f7dadbbf5093b911e96a7fc) of the library in this repository. 
 
 ## License
 
