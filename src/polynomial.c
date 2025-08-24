@@ -119,6 +119,12 @@ void polynomial_scale_and_add_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial
   #endif
 }
 
+void polynomial_negate_DFT_polynomial(DFT_Polynomial out, DFT_Polynomial in){
+  for (size_t i = 0; i < in->N; i++){
+    out->coeffs[i] = - in->coeffs[i];
+  }
+}
+
 void polynomial_sub_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2){
   for (size_t i = 0; i < in2->N; i++){
     out->coeffs[i] = in1->coeffs[i] - in2->coeffs[i];
@@ -128,6 +134,10 @@ void polynomial_sub_DFT_polynomials(DFT_Polynomial out, DFT_Polynomial in1, DFT_
 /* out = in */
 void polynomial_copy_torus_polynomial(TorusPolynomial out, TorusPolynomial in){
   memcpy(out->coeffs, in->coeffs, in->N*sizeof(Torus));
+}
+
+void polynomial_zero_torus_polynomial(TorusPolynomial p){
+  memset(p->coeffs, 0, p->N*sizeof(Torus));
 }
 
 /* out = -in */
@@ -172,9 +182,13 @@ void polynomial_subto_torus_polynomial(TorusPolynomial out, TorusPolynomial in){
 
 /* out = in*X^a */
 void torus_polynomial_mul_by_xai(TorusPolynomial out, TorusPolynomial in, int a){
+  assert(out != in);
   const int N = out->N;
   a &= ((N<<1) - 1); // a % 2N
-  if (!a) return;
+  if (!a) {
+    polynomial_copy_torus_polynomial(out, in);
+    return;
+  }
   if (a < N) {
     for (int i = 0; i < a; i++) out->coeffs[i] = -in->coeffs[i - a + N];
     for (int i = a; i < N; i++) out->coeffs[i] = in->coeffs[i - a];
@@ -186,9 +200,13 @@ void torus_polynomial_mul_by_xai(TorusPolynomial out, TorusPolynomial in, int a)
 
 /* out += in*X^a */
 void torus_polynomial_mul_by_xai_addto(TorusPolynomial out, TorusPolynomial in, int a){
+  assert(out != in);
   const int N = out->N;
   a &= ((N<<1) - 1); // a % 2N
-  if (!a) return;
+  if (!a){
+    polynomial_addto_torus_polynomial(out, in);
+    return;
+  } 
   if (a < N) {
     for (int i = 0; i < a; i++) out->coeffs[i] += -in->coeffs[i - a + N];
     for (int i = a; i < N; i++) out->coeffs[i] += in->coeffs[i - a];
@@ -201,8 +219,12 @@ void torus_polynomial_mul_by_xai_addto(TorusPolynomial out, TorusPolynomial in, 
 /* out = in*(X^a - 1)*/
 void torus_polynomial_mul_by_xai_minus_1(TorusPolynomial out, TorusPolynomial in, int a){
   const int N = out->N;
+  assert(out != in);
   a &= ((N<<1) - 1); // a % 2N
-  if (!a) return;
+  if (!a) {
+    polynomial_zero_torus_polynomial(out);
+    return;
+  }
   if (a < N) {
     for (int i = 0; i < a; i++) out->coeffs[i] = -in->coeffs[i - a + N] - in->coeffs[i];
     for (int i = a; i < N; i++) out->coeffs[i] = in->coeffs[i - a] - in->coeffs[i];
@@ -244,9 +266,9 @@ void polynomial_naive_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, 
 void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
   const int N = in2->N;
   // alloc temporaries
-  static __thread DFT_Polynomial * tmp_pool[32] = {NULL}; 
-  if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_array_of_polynomials_DFT(N, 3);
-  DFT_Polynomial * tmp = tmp_pool[N>>10];
+  static __thread DFT_Polynomial * tmp_pool[1024] = {NULL}; 
+  if(tmp_pool[N>>7] == NULL) tmp_pool[N>>7] = polynomial_new_array_of_polynomials_DFT(N, 3);
+  DFT_Polynomial * tmp = tmp_pool[N>>7];
   // dft mul
   polynomial_torus_to_DFT(tmp[1], in1);
   polynomial_torus_to_DFT(tmp[2], in2);
@@ -257,9 +279,9 @@ void polynomial_mul_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynom
 void polynomial_mul_addto_torus(TorusPolynomial out, TorusPolynomial in1, TorusPolynomial in2){
   const int N = in2->N;
   // alloc temporaries
-  static __thread TorusPolynomial tmp_pool[32] = {NULL}; 
-  if(tmp_pool[N>>10] == NULL) tmp_pool[N>>10] = polynomial_new_torus_polynomial(N);
-  TorusPolynomial tmp = tmp_pool[N>>10];
+  static __thread TorusPolynomial tmp_pool[1024] = {NULL}; 
+  if(tmp_pool[N>>7] == NULL) tmp_pool[N>>7] = polynomial_new_torus_polynomial(N);
+  TorusPolynomial tmp = tmp_pool[N>>7];
   polynomial_mul_torus(tmp, in1, in2);
   polynomial_addto_torus_polynomial(out, tmp);
 }
@@ -306,49 +328,49 @@ void polynomial_torus_scale(TorusPolynomial out, TorusPolynomial in, int log_sca
 /* out[i] = in[i] * scale */
 void polynomial_torus_scale2(TorusPolynomial out, TorusPolynomial in, uint64_t scale){
   for (size_t i = 0; i < in->N; i++){
-    out->coeffs[i] = out->coeffs[i] * scale;
+    out->coeffs[i] = in->coeffs[i] * scale;
   }
 }
 
 
 #if defined(USE_SPQLIOS)
 #include "../src/fft/spqlios/spqlios-fft.h"
-__thread FFT_Processor_Spqlios fft_proc[32] = {NULL};
-FFT_Processor_Spqlios fft_proc_global[32] = {NULL};
+__thread FFT_Processor_Spqlios fft_proc[1024] = {NULL};
+FFT_Processor_Spqlios fft_proc_global[1024] = {NULL};
 
 void init_fft(int N){
-  if(fft_proc[N >> 10]) return;
-  if(fft_proc_global[N >> 10]){ 
-    fft_proc[N >> 10] = copy_FFT_Processor_Spqlios(fft_proc_global[N >> 10]);
+  if(fft_proc[N >> 7]) return;
+  if(fft_proc_global[N >> 7]){ 
+    fft_proc[N >> 7] = copy_FFT_Processor_Spqlios(fft_proc_global[N >> 7]);
   }else{
-    fft_proc[N >> 10] = new_FFT_Processor_Spqlios(N);
-    fft_proc_global[N >> 10] = fft_proc[N >> 10];
+    fft_proc[N >> 7] = new_FFT_Processor_Spqlios(N);
+    fft_proc_global[N >> 7] = fft_proc[N >> 7];
   }
 }
 #else
 #include "./fft/ffnt/ffnt.h"
-__thread FFT_Processor_FFNT fft_proc[32] = {NULL};
+__thread FFT_Processor_FFNT fft_proc[1024] = {NULL};
 
 void init_fft(int N){
-  if(!fft_proc[N >> 10]) fft_proc[N >> 10] = new_FFT_Processor_FFNT(N);
+  if(!fft_proc[N >> 7]) fft_proc[N >> 7] = new_FFT_Processor_FFNT(N);
 }
 #endif
 
 void polynomial_DFT_to_torus(TorusPolynomial out, const DFT_Polynomial in){
   init_fft(in->N);
 #ifdef TORUS32
-  execute_direct_torus32(out->coeffs, in->coeffs, fft_proc[in->N >> 10]);
+  execute_direct_torus32(out->coeffs, in->coeffs, fft_proc[in->N >> 7]);
 #else
-  execute_direct_torus64(out->coeffs, in->coeffs, fft_proc[in->N >> 10]);
+  execute_direct_torus64(out->coeffs, in->coeffs, fft_proc[in->N >> 7]);
 #endif
 }
 
 void polynomial_torus_to_DFT(DFT_Polynomial out, TorusPolynomial in){
   init_fft(in->N);
 #ifdef TORUS32
-  execute_reverse_torus32(out->coeffs, in->coeffs, fft_proc[in->N >> 10]);
+  execute_reverse_torus32(out->coeffs, in->coeffs, fft_proc[in->N >> 7]);
 #else
-  execute_reverse_torus64(out->coeffs, in->coeffs, fft_proc[in->N >> 10]);
+  execute_reverse_torus64(out->coeffs, in->coeffs, fft_proc[in->N >> 7]);
 #endif
 }
 
@@ -383,6 +405,8 @@ void polynomial_mul_DFT(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial i
 /* out += in1*in2 */
 void polynomial_mul_addto_DFT(DFT_Polynomial out, DFT_Polynomial in1, DFT_Polynomial in2){
   const int N = in1->N;
+  assert(out != in1);
+  assert(out != in2);
   #ifdef AVX512_OPT
   __m512d * a = (__m512d *) in1->coeffs;
   __m512d * b = (__m512d *) in2->coeffs;

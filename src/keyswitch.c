@@ -62,6 +62,40 @@ void trlwe_priv_keyswitch_2(TRLWE out, TRLWE in, TRLWE_KS_Key * ks_key){
   free_trlwe(tmp);
 }
 
+void trlwe_RLWE_priv_keyswitch(TRLWE out, TRLWE in, TRLWE_KS_Key ks_key){
+  const int N = out->b->N;
+  assert(out->k == ks_key->s[0][0]->k);
+  assert(out->b->N == ks_key->s[0][0]->b->N);
+  
+  TorusPolynomial dec_in_a = polynomial_new_torus_polynomial(N);
+  DFT_Polynomial tmp = polynomial_new_DFT_polynomial(N);
+  TRLWE_DFT acc = trlwe_alloc_new_DFT_sample(out->k, N);
+  TRLWE as = trlwe_alloc_new_sample(out->k, N);
+
+  trlwe_noiseless_trivial_DFT_sample(acc, NULL);
+  for (size_t i = 0; i < in->k; i++){
+    for (size_t j = 0; j < ks_key->t; j++){
+      polynomial_decompose_i(dec_in_a, in->a[i], ks_key->base_bit, ks_key->t, j);
+      polynomial_torus_to_DFT(tmp, dec_in_a);
+      trlwe_DFT_mul_addto_by_polynomial(acc, ks_key->s[i][j], tmp);   
+    }
+  }
+  trlwe_from_DFT(as, acc);
+  trlwe_noiseless_trivial_DFT_sample(acc, NULL);
+  for (size_t j = 0; j < ks_key->t; j++){
+    polynomial_decompose_i(dec_in_a, in->b, ks_key->base_bit, ks_key->t, j);
+    polynomial_torus_to_DFT(tmp, dec_in_a);
+    trlwe_DFT_mul_addto_by_polynomial(acc, ks_key->s[in->k][j], tmp);   
+  }
+  trlwe_from_DFT(out, acc);
+  trlwe_subto(out, as);
+  
+  free_trlwe(acc);
+  free_trlwe(as);
+  free_polynomial(tmp);
+  free_polynomial(dec_in_a);
+}
+
 TRLWE_KS_Key trlwe_new_full_packing_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
   TRLWE_Key tmp = trlwe_alloc_key(1, in_key->n, in_key->sigma); // N=1, k = n 
   for (size_t i = 0; i < in_key->n; i++){
@@ -169,10 +203,7 @@ void trlwe_full_packing_keyswitch(TRLWE out, TLWE * in, uint64_t size, TRLWE_KS_
   TRLWE_DFT acc = trlwe_alloc_new_DFT_sample(out->k, N);
 
   memset(a_i->coeffs, 0, sizeof(Torus)*N);
-  for (size_t i = 0; i < out->k; i++){
-    memset(acc->a[i]->coeffs, 0, sizeof(Torus)*N);
-  }
-  memset(acc->b->coeffs, 0, sizeof(Torus)*N);
+  trlwe_noiseless_trivial_DFT_sample(acc, NULL);
   
   for (size_t i = 0; i < in[0]->n; i++){
     for (size_t j = 0; j < size; j++){
@@ -479,6 +510,19 @@ TRLWE_KS_Key * trlwe_new_automorphism_KS_keyset(TRLWE_Key key, bool skip_even, i
   return res;
 }
 
+TRLWE_KS_Key * trlwe_new_automorphism_KS_keyset_2(TRLWE_Key key, uint64_t * gens, uint64_t size, int t, int base_bit){
+  assert(key->k == 1);
+  const int N = key->s[0]->N;
+  TRLWE_Key key2 = trlwe_alloc_key(N, 1, key->sigma);
+  TRLWE_KS_Key * res = (TRLWE_KS_Key * ) safe_malloc(sizeof(TRLWE_KS_Key) * N);
+  for (size_t i = 0; i < size; i++){
+    polynomial_permute(key2->s[0], key->s[0], gens[i]);
+    res[i] = trlwe_new_KS_key(key, key2, t, base_bit);
+  }  
+  free_trlwe_key(key2);
+  return res;
+}
+
 void trlwe_packing1_keyswitch_CDKS21(TRLWE out, TLWE in, TRLWE_KS_Key * ks_key){
   const int k = out->k, N = out->b->N;
   assert(out->k == ks_key[0]->k);
@@ -501,8 +545,70 @@ void trlwe_packing1_keyswitch_CDKS21(TRLWE out, TLWE in, TRLWE_KS_Key * ks_key){
   free_trlwe(tmp);
 }
 
-/* Private Key Switching TLWE(M) -> TRLWE(m*-s) */
-Generic_KS_Key trlwe_new_priv_SK_KS_key(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
+TRLWE_KS_Key * trlwe_new_gadget_to_RGSW_KS(TRLWE_Key key, int t, int base_bit){
+  const uint64_t k = key->k, N = key->s[0]->N;
+  TRLWE_KS_Key * res = (TRLWE_KS_Key *) safe_malloc(sizeof(*res)*k);
+  TorusPolynomial tmp = polynomial_new_torus_polynomial(N);
+  for (size_t i = 0; i < k; i++){
+    polynomial_negate_torus_polynomial(tmp, key->s[i]);
+    res[i] = trlwe_new_RLWE_priv_KS_key(key, key, tmp, t, base_bit);
+  }
+  return res;
+}
+
+void trgsw_from_gadget(TRGSW_DFT out, TRLWE * gadget, TRLWE_KS_Key * ksk){
+  const uint64_t k = out->samples[0]->k;
+  TRLWE tmp = trlwe_alloc_new_sample(out->samples[0]->k, out->samples[0]->b->N);
+  for (size_t j = 0; j < k; j++){
+    for (size_t i = 0; i < out->l; i++){
+      trlwe_RLWE_priv_keyswitch(tmp, gadget[i], ksk[j]);
+      trlwe_to_DFT(out->samples[i + j*out->l], tmp);
+    }
+  }
+  for (size_t i = 0; i < out->l; i++){
+    trlwe_to_DFT(out->samples[i + k*out->l], gadget[i]);
+  }
+  free_trlwe(tmp);
+}
+
+/* Private Key Switching TRLWE(M) -> TRLWE(m*V) */
+TRLWE_KS_Key trlwe_new_RLWE_priv_KS_key(TRLWE_Key out_key, TRLWE_Key in_key, TorusPolynomial v, int t, int base_bit){
+  const int bit_size = sizeof(Torus)*8, N_out = out_key->s[0]->N, N_in = in_key->s[0]->N;
+  TRLWE_KS_Key res;
+  res = (TRLWE_KS_Key) safe_malloc(sizeof(*res));
+  res->base_bit = base_bit;
+  res->k = in_key->k;
+  res->t = t;
+  TorusPolynomial tmp_poly = polynomial_new_torus_polynomial(N_in);
+  TorusPolynomial dec_poly = polynomial_new_torus_polynomial(N_in);
+  TRLWE tmp = trlwe_alloc_new_sample(out_key->k, N_out);
+
+  res->s = (TRLWE_DFT **) safe_malloc(sizeof(TRLWE_DFT*) * (in_key->k + 1));
+  for (size_t i = 0; i < in_key->k; i++){
+    res->s[i] = (TRLWE_DFT *) safe_malloc(sizeof(TRLWE_DFT) * t);
+    polynomial_mul_torus(tmp_poly, in_key->s[i], v);
+    for (size_t j = 0; j < t; j++){
+      polynomial_torus_scale2(dec_poly, tmp_poly, (1UL << (bit_size - (j + 1) * base_bit)));
+      trlwe_sample(tmp, dec_poly, out_key);
+      res->s[i][j] = trlwe_alloc_new_DFT_sample(out_key->k, N_out);
+      trlwe_to_DFT(res->s[i][j], tmp);
+    }
+  }
+  res->s[in_key->k] = (TRLWE_DFT *) safe_malloc(sizeof(TRLWE_DFT) * t);
+  for (size_t j = 0; j < t; j++){
+    polynomial_torus_scale2(dec_poly, v, (1UL << (bit_size - (j + 1) * base_bit)));
+    trlwe_sample(tmp, dec_poly, out_key);
+    res->s[in_key->k][j] = trlwe_alloc_new_DFT_sample(out_key->k, N_out);
+    trlwe_to_DFT(res->s[in_key->k][j], tmp);
+  }
+  free_polynomial(tmp_poly);
+  free_polynomial(dec_poly);
+  free_trlwe(tmp);
+  return res;
+}
+
+/* Private Key Switching TLWE(M) -> TRLWE(m*-s) in n^2 time with precompute*/
+Generic_KS_Key trlwe_new_priv_SK_KS_key_N2(TRLWE_Key out_key, TLWE_Key in_key, int t, int base_bit){
   const int base = 1 << base_bit, bit_size = sizeof(Torus)*8;
   assert(out_key->k == 1 /* new TRLWE definition */);
   Generic_KS_Key res;

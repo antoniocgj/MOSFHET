@@ -28,9 +28,7 @@ ifdef TORUS32
  FLAGS += -DTORUS32
 endif
 
-ifndef FAST_DEBUG
- FLAGS += -DNDEBUG
-endif
+
 
 ifdef PORTABLE_BUILD
 	FFT_LIB=ffnt

@@ -88,7 +88,12 @@ void execute_reverse_torus64(double* res, const uint64_t* a, FFT_Processor_Spqli
     for (int i=0; i<proc->N; i++) proc->real_inout_rev[i]=(double)aa[i];
     #endif
     ifft(proc->tables_reverse,proc->real_inout_rev);
+    #ifdef AVX512_OPT
+    __m512d * resv = (__m512d *) res;
+    for (int i=0; i<proc->N/8; i++) resv[i] = ri512[i];
+    #else
     for (int i=0; i<proc->N; i++) res[i]=proc->real_inout_rev[i];
+    #endif
 }
 
 void execute_direct_torus32(uint32_t *res, const double *a, FFT_Processor_Spqlios proc) {

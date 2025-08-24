@@ -154,7 +154,7 @@ int main(int argc, char const *argv[]){
  
 
 #ifdef BENCH_PRIV_KS
-  Generic_KS_Key kska = trlwe_new_priv_SK_KS_key(key_trlwe, key_tlwe_out, t, base_bit);
+  Generic_KS_Key kska = trlwe_new_priv_SK_KS_key_N2(key_trlwe, key_tlwe_out, t, base_bit);
   generate_random_bytes(sizeof(Torus)*N, (uint8_t *) lut->b->coeffs);
 
   MEASURE_TIME("PRIV_KS", _EXECS, "TRLWE Priv KS",

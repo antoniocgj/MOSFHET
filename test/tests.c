@@ -864,7 +864,7 @@ void test_tlwe_pack_key_priv_ks(){
   const int bit_len = sizeof(Torus)*8;
   TLWE_Key key_1 = tlwe_new_binary_key(n, lwe_std_dev);
   TRLWE_Key key_2 = trlwe_new_binary_key(N, k, rlwe_std_dev);
-  Generic_KS_Key ksk = trlwe_new_priv_SK_KS_key(key_2, key_1, t, base_bit);
+  Generic_KS_Key ksk = trlwe_new_priv_SK_KS_key_N2(key_2, key_1, t, base_bit);
 
   Torus in1 = 1UL << (bit_len - Bg_bit);
   // generate_random_bytes(sizeof(Torus), (uint8_t *) &in1);
@@ -2019,6 +2019,8 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_tlwe_ks);
   RUN_TEST(test_trlwe_ks);
   RUN_TEST(test_blind_rotate);
+  RUN_TEST(test_functional_bootstrap_ga);
+  RUN_TEST(test_functional_bootstrap_ga_bounded_key);
   RUN_TEST(test_functional_bootstrap);
   RUN_TEST(test_poly_DFT);
   RUN_TEST(test_poly_DFT_mul);
@@ -2031,8 +2033,6 @@ int main(int argc, char const *argv[])
   RUN_TEST(test_trgsw_mul);
   RUN_TEST(test_functional_mv_bootstrap);
   RUN_TEST(test_programmable_bootstrap);
-  RUN_TEST(test_functional_bootstrap_ga);
-  RUN_TEST(test_functional_bootstrap_ga_bounded_key);
   RUN_TEST(test_FDFB_KS21);
   RUN_TEST(test_FDFB_new);
   RUN_TEST(test_FDFB_CLOT21);

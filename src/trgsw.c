@@ -151,6 +151,7 @@ TRGSW trgsw_new_noiseless_trivial_sample(Torus m, int l, int Bg_bit, int k, int 
 /* TRGSW_key(mX^e) */
 void trgsw_monomial_sample(TRGSW out, int64_t m, int e, TRGSW_Key key){
   const int l = key->l, k = key->trlwe_key->k, Bg_bit = key->Bg_bit, N = key->trlwe_key->s[0]->N;
+  assert(out->l == key->l);
   if(e&N) m *= -1;
   e &= (N - 1);
   for (size_t i = 0; i < l * (k + 1); i++){
@@ -164,6 +165,13 @@ void trgsw_monomial_sample(TRGSW out, int64_t m, int e, TRGSW_Key key){
     }
     out->samples[k*l + i]->b->coeffs[e] += m * h;
   }
+}
+
+void trgsw_monomial_DFT_sample(TRGSW_DFT out, int64_t m, int e, TRGSW_Key key){
+  TRGSW tmp = trgsw_alloc_new_sample(out->l, out->Bg_bit, out->samples[0]->k, out->samples[0]->b->N);
+  trgsw_monomial_sample(tmp, m, e, key);
+  trgsw_to_DFT(out, tmp);
+  free_trgsw(tmp);
 }
 
 /* TRGSW_key(mX^e) */
@@ -375,33 +383,43 @@ void trgsw_mul_trlwe_DFT_1(TRLWE_DFT out, TRLWE in1, TRGSW_DFT in2){
 }
 
 void trgsw_mul_trlwe_DFT(TRLWE_DFT out, TRLWE in1, TRGSW_DFT in2){
-  const int N = in1->b->N, l = in2->l;
-  if(in1->k > 1) return trgsw_mul_trlwe_DFT_1(out, in1, in2);
-  assert(in1->k == 1);
-  TorusPolynomial dec_trlwe = polynomial_new_torus_polynomial(N);
-  DFT_Polynomial dec_trlwe_DFT = polynomial_new_DFT_polynomial(N); 
+  const int N = in1->b->N, l = in2->l, k = in1->k;
+  // if(in1->k > 1) return trgsw_mul_trlwe_DFT_1(out, in1, in2);
+  // assert(in1->k == 1);
+  assert(in1->k == in2->samples[0]->k);
+  TorusPolynomial dec_poly = polynomial_new_torus_polynomial(N);
+  DFT_Polynomial dec_poly_DFT = polynomial_new_DFT_polynomial(N); 
 
-  polynomial_decompose_i(dec_trlwe, in1->a[0], in2->Bg_bit, in2->l, 0);
-  polynomial_torus_to_DFT(dec_trlwe_DFT, dec_trlwe);
-  polynomial_mul_DFT(out->a[0], dec_trlwe_DFT, in2->samples[0]->a[0]);
-  polynomial_mul_DFT(out->b, dec_trlwe_DFT, in2->samples[0]->b);
+  // decomp a[0], get a[0]_0
+  polynomial_decompose_i(dec_poly, in1->a[0], in2->Bg_bit, in2->l, 0);
+  polynomial_torus_to_DFT(dec_poly_DFT, dec_poly);
+  trlwe_DFT_mul_by_polynomial(out, in2->samples[0], dec_poly_DFT);
 
+  // decomp a[0], get a[0]_i for i in 1 to ell - 1 
   for (size_t j = 1; j < l; j++){
-    polynomial_decompose_i(dec_trlwe, in1->a[0], in2->Bg_bit, in2->l, j);
-    polynomial_torus_to_DFT(dec_trlwe_DFT, dec_trlwe);
-    polynomial_mul_addto_DFT(out->a[0], dec_trlwe_DFT, in2->samples[j]->a[0]);
-    polynomial_mul_addto_DFT(out->b, dec_trlwe_DFT, in2->samples[j]->b);
+    polynomial_decompose_i(dec_poly, in1->a[0], in2->Bg_bit, in2->l, j);
+    polynomial_torus_to_DFT(dec_poly_DFT, dec_poly);
+    trlwe_DFT_mul_addto_by_polynomial(out, in2->samples[j], dec_poly_DFT);
   }
 
+  // decomp a[i], get a[i]_j for i in [1,k) and j in [0, ell)
+  for (size_t i = 1; i < in1->k; i++){
+    for (size_t j = 0; j < l; j++){
+      polynomial_decompose_i(dec_poly, in1->a[i], in2->Bg_bit, in2->l, j);
+      polynomial_torus_to_DFT(dec_poly_DFT, dec_poly);
+      trlwe_DFT_mul_addto_by_polynomial(out, in2->samples[i*l + j], dec_poly_DFT);
+    }
+  }
+  
+  // decomp b, get b_j for j in [0, ell)
   for (size_t j = 0; j < l; j++){
-    polynomial_decompose_i(dec_trlwe, in1->b, in2->Bg_bit, in2->l, j);
-    polynomial_torus_to_DFT(dec_trlwe_DFT, dec_trlwe);
-    polynomial_mul_addto_DFT(out->a[0], dec_trlwe_DFT, in2->samples[j+l]->a[0]);
-    polynomial_mul_addto_DFT(out->b, dec_trlwe_DFT, in2->samples[j+l]->b);
+    polynomial_decompose_i(dec_poly, in1->b, in2->Bg_bit, in2->l, j);
+    polynomial_torus_to_DFT(dec_poly_DFT, dec_poly);
+    trlwe_DFT_mul_addto_by_polynomial(out, in2->samples[k*l + j], dec_poly_DFT);
   }
 
-  free_polynomial(dec_trlwe);
-  free_polynomial(dec_trlwe_DFT);
+  free_polynomial(dec_poly);
+  free_polynomial(dec_poly_DFT);
 }
 
 void trgsw_mul_DFT(TRGSW_DFT out, TRGSW in1, TRGSW_DFT in2){

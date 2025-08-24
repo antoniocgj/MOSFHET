@@ -134,7 +134,7 @@ TRLWE_Key trlwe_new_binary_key(int N, int k, double sigma){
 }
 
 
-void gen_sparse_ternary_array(uint64_t * out, uint64_t size, uint64_t h){
+void gen_sparse_array(uint64_t * out, uint64_t size, uint64_t h, bool ternary, bool gaussian, double key_sigma){
   memset(out, 0, sizeof(uint64_t)*size);
   uint64_t hw = 0, val = 1, * rnd_buffer;
   const uint64_t buffer_size = h*10;
@@ -145,18 +145,72 @@ void gen_sparse_ternary_array(uint64_t * out, uint64_t size, uint64_t h){
     while (i < buffer_size && hw < h){
       const uint64_t idx = (rnd_buffer[i++] & (size - 1));
       if(out[idx]) continue;
+      if(gaussian) val = (uint64_t)((int64_t) generate_normal_random(key_sigma));
       out[idx] = val;
-      val *= -1;
+      if(ternary) val *= -1;
       hw++;
     }
   }
   free(rnd_buffer);
 }
 
+// Generate sparse ternary key, each HW(a_i) = h
 TRLWE_Key trlwe_new_ternary_key(int N, int k, int h, double sigma){
   TRLWE_Key res = trlwe_alloc_key(N, k, sigma);
   for (size_t i = 0; i < k; i++){
-    gen_sparse_ternary_array(res->s[i]->coeffs, N, h);
+    gen_sparse_array(res->s[i]->coeffs, N, h, true, false, 0);
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
+}
+
+// Generate sparse ternary key, \sum^{k-1}_{i=0} HW(a_i) = h
+TRLWE_Key trlwe_new_sparse_ternary_key(int N, int k, int h, double sigma){
+  TRLWE_Key res = trlwe_alloc_key(N, k, sigma);
+  uint64_t tmp[k*N];
+  gen_sparse_array(tmp, k*N, h, true, false, 0);
+  for (size_t i = 0; i < k; i++){
+    memcpy(res->s[i]->coeffs, &tmp[i*N], sizeof(Torus)*N);
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
+}
+
+TRLWE_Key trlwe_new_sparse_binary_key(int N, int k, int h, double sigma){
+  TRLWE_Key res = trlwe_alloc_key(N, k, sigma);
+  for (size_t i = 0; i < k; i++){
+    gen_sparse_array(res->s[i]->coeffs, N, h, false, false, 0);
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
+}
+
+TRLWE_Key trlwe_new_sparse_gaussian_key(int N, int k, int h, double key_sigma, double noise_sigma){
+  TRLWE_Key res = trlwe_new_sparse_binary_key(N, k, h, noise_sigma);
+  for (size_t i = 0; i < k; i++){
+    for (size_t j = 0; j < N; j++){
+      if(res->s[i]->coeffs[j] == 1){
+        res->s[i]->coeffs[j] = (uint64_t)((int64_t) generate_normal_random(key_sigma));
+        if(!res->s[i]->coeffs[j]) res->s[i]->coeffs[j] = 1;
+      }
+    }
+    polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
+  }
+  return res;
+}
+
+// key_bound must be a power of 2
+TRLWE_Key trlwe_new_sparse_generic_key(int N, int k, int h, uint64_t key_bound, double noise_sigma){
+  TRLWE_Key res = trlwe_new_sparse_binary_key(N, k, h, noise_sigma);
+  for (size_t i = 0; i < k; i++){
+    for (size_t j = 0; j < N; j++){
+      if(res->s[i]->coeffs[j] == 1){
+        generate_random_bytes(sizeof(uint64_t), (uint8_t *) &res->s[i]->coeffs[j]);
+        res->s[i]->coeffs[j] &= (key_bound - 1);
+        res->s[i]->coeffs[j] -= (key_bound >> 1) - 1;
+        if(!res->s[i]->coeffs[j]) res->s[i]->coeffs[j] = 1;
+      }
+    }
     polynomial_torus_to_DFT(res->s_dft[i], res->s[i]);
   }
   return res;
@@ -210,6 +264,13 @@ void trlwe_noiseless_trivial_sample(TRLWE out, TorusPolynomial m){
   }
   if(m != NULL) memcpy(out->b->coeffs, m->coeffs, sizeof(Torus) * out->b->N);
   else memset(out->b->coeffs, 0, sizeof(Torus) * out->b->N);
+}
+
+void trlwe_scale(TRLWE out, TRLWE in, uint64_t scale){
+  for (size_t i = 0; i < in->k; i++){
+    polynomial_torus_scale2(out->a[i], in->a[i], scale);
+  }
+  polynomial_torus_scale2(out->b, in->b, scale);
 }
 
 TRLWE trlwe_new_noiseless_trivial_sample(TorusPolynomial m, int k, int N){
@@ -269,6 +330,45 @@ void trlwe_phase(TorusPolynomial out, TRLWE in, TRLWE_Key key){
   polynomial_sub_torus_polynomials(out, in->b, out);
 }
 
+void print_trlwe_msg(TRLWE in, uint64_t prec, TRLWE_Key key){
+  const uint64_t N = in->b->N;
+  TorusPolynomial tmp = polynomial_new_torus_polynomial(N);
+  trlwe_phase(tmp, in, key);
+  for (size_t i = 0; i < N - 1; i++){
+    printf("%lu, ", torus2int(tmp->coeffs[i], prec));
+  }
+  printf("%lu\n", torus2int(tmp->coeffs[N-1], prec));
+  free_polynomial(tmp);
+}
+
+uint64_t _debug_trlwe_decrypt_exp_sample(TRLWE c, uint64_t prec, TRLWE_Key key){
+  const uint64_t N = key->s[0]->N;
+  const Torus delta = (1ULL << (sizeof(Torus)*8 - prec - 1));
+  TorusPolynomial poly = polynomial_new_torus_polynomial(N);
+  trlwe_phase(poly, c, key);
+  int resIdx = -1;
+  for (int j = 0; j < N; j++){
+    if((poly->coeffs[j] < -delta) && (poly->coeffs[j] > delta)){
+      if(resIdx != -1){
+        resIdx = -1;
+        break;
+      }
+      resIdx = j;
+    }
+  }
+  if(resIdx == -1){
+    printf("\nTRGSW error: no value\n");
+    for (size_t i = 0; i < N; i++)
+    {
+      printf("%lu: %lf, ", i, torus2double(poly->coeffs[i]));
+    }
+    printf("\n");
+    exit(0);
+  }
+  free_polynomial(poly);
+  return resIdx;
+}
+
 void trlwe_DFT_phase(TorusPolynomial out, TRLWE_DFT in, TRLWE_Key key){
   const int N = out->N, k = in->k, byte_size = sizeof(Torus) * N;
   DFT_Polynomial tmp = polynomial_new_DFT_polynomial(N);
@@ -281,12 +381,36 @@ void trlwe_DFT_phase(TorusPolynomial out, TRLWE_DFT in, TRLWE_Key key){
   free_DFT_polynomial(tmp);
 }
 
+#ifndef AVX512_OPT
+
 void trlwe_add(TRLWE out, TRLWE in1, TRLWE in2){
   for (size_t i = 0; i < in1->k; i++){
     polynomial_add_torus_polynomials(out->a[i], in1->a[i], in2->a[i]);
   }
   polynomial_add_torus_polynomials(out->b, in1->b, in2->b);
 }
+
+#else 
+void trlwe_add(TRLWE out, TRLWE in1, TRLWE in2){
+  for (size_t j = 0; j < in1->k; j++){
+    __m512i * a1 = (__m512i *) in1->a[j]->coeffs;
+    __m512i * b1 = (__m512i *) in2->a[j]->coeffs;
+    __m512i * c1 = (__m512i *) out->a[j]->coeffs;
+    for (size_t i = 0; i < in2->b->N/8; i++){
+      c1[i] = _mm512_add_epi64(a1[i], b1[i]);
+    }
+  }
+  
+  // b
+  __m512i * a2 = (__m512i *) in1->b->coeffs;
+  __m512i * b2 = (__m512i *) in2->b->coeffs;
+  __m512i * c2 = (__m512i *) out->b->coeffs;
+  for (size_t i = 0; i < in2->b->N/8; i++){
+    c2[i] = _mm512_add_epi64(a2[i], b2[i]);
+  }
+}
+#endif
+
 
 void trlwe_copy(TRLWE out, TRLWE in){
   for (size_t i = 0; i < in->k; i++){
@@ -343,14 +467,19 @@ void trlwe_sub(TRLWE out, TRLWE in1, TRLWE in2){
 
 #else 
 void trlwe_sub(TRLWE out, TRLWE in1, TRLWE in2){
-  __m512i * a1 = (__m512i *) in1->a[0]->coeffs;
-  __m512i * b1 = (__m512i *) in2->a[0]->coeffs;
-  __m512i * c1 = (__m512i *) out->a[0]->coeffs;
+  for (size_t j = 0; j < in1->k; j++){
+    __m512i * a1 = (__m512i *) in1->a[j]->coeffs;
+    __m512i * b1 = (__m512i *) in2->a[j]->coeffs;
+    __m512i * c1 = (__m512i *) out->a[j]->coeffs;
+    for (size_t i = 0; i < in2->b->N/8; i++){
+      c1[i] = _mm512_sub_epi64(a1[i], b1[i]);
+    }
+  }
+  
   __m512i * a2 = (__m512i *) in1->b->coeffs;
   __m512i * b2 = (__m512i *) in2->b->coeffs;
   __m512i * c2 = (__m512i *) out->b->coeffs;
   for (size_t i = 0; i < in2->b->N/8; i++){
-    c1[i] = _mm512_sub_epi64(a1[i], b1[i]);
     c2[i] = _mm512_sub_epi64(a2[i], b2[i]);
   }
 }
@@ -361,17 +490,15 @@ void trlwe_subto(TRLWE out, TRLWE in){
 
 void trlwe_DFT_mul_by_polynomial(TRLWE_DFT out, TRLWE_DFT in, DFT_Polynomial in2){
   const int k = in->k;
-  polynomial_mul_DFT(out->a[0], in->a[0], in2);
-  for (size_t i = 1; i < k; i++){
-    polynomial_mul_addto_DFT(out->a[i], in->a[i], in2);
+  for (size_t i = 0; i < k; i++){
+    polynomial_mul_DFT(out->a[i], in->a[i], in2);
   }
   polynomial_mul_DFT(out->b, in->b, in2);
 }
 
 void trlwe_DFT_mul_addto_by_polynomial(TRLWE_DFT out, TRLWE_DFT in, DFT_Polynomial in2){
   const int k = in->k;
-  polynomial_mul_addto_DFT(out->a[0], in->a[0], in2);
-  for (size_t i = 1; i < k; i++){
+  for (size_t i = 0; i < k; i++){
     polynomial_mul_addto_DFT(out->a[i], in->a[i], in2);
   }
   polynomial_mul_addto_DFT(out->b, in->b, in2);
@@ -412,6 +539,7 @@ void trlwe_extract_tlwe_key(TLWE_Key out, TRLWE_Key in){
 
 void trlwe_extract_tlwe(TLWE out, TRLWE in, int idx){
   const int N = in->b->N, k = in->k;
+  assert(out->n == N*k);
   for (size_t i = 0; i < k; i++){
     for (size_t j = 0; j <= idx; j++){
       out->a[i*N + j] = in->a[i]->coeffs[idx - j];
@@ -538,6 +666,14 @@ void trlwe_torus_packing(TRLWE out, Torus * in, int size){
   }
 }
 
+void trlwe_LUT_packing(TRLWE out, uint64_t * in, uint64_t in_prec, uint64_t out_prec){
+  const uint64_t size = 1ULL << in_prec;
+  trlwe_noiseless_trivial_sample(out, 0);
+  for (size_t i = 0; i < out->b->N; i++){
+    out->b->coeffs[i] = int2torus(in[i/(out->b->N/size)], out_prec);
+  }
+}
+
 /* */
 void trlwe_torus_packing_many_LUT(TRLWE out, Torus * in, int lut_size, int n_luts){
   trlwe_noiseless_trivial_sample(out, 0);
@@ -575,8 +711,23 @@ void trlwe_tensor_prod(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE_KS_
   free_trlwe(t);
 }
 
+extern TRLWE_Key _glb_debug_trlwe_key;
+void trlwe_tensor_prod_FFT2(TRLWE_DFT out, TRLWE_DFT in1, TRLWE_DFT in2, int precision, TRLWE_KS_Key rl_key){
+  const int N = in1->b->N;
+  TRLWE tmp0 = trlwe_alloc_new_sample(1, N);
+  TRLWE tmp1 = trlwe_alloc_new_sample(1, N);
+  TRLWE tmp2 = trlwe_alloc_new_sample(1, N);
+  trlwe_from_DFT(tmp1, in1);
+  trlwe_from_DFT(tmp2, in2);
+  trlwe_tensor_prod_FFT(tmp0, tmp1, tmp2, precision, rl_key);
+  // printf("TRLWE prod: %lu\n", _debug_trlwe_decrypt_exp_sample(tmp0, 1, _glb_debug_trlwe_key));
+  trlwe_to_DFT(out, tmp0);
+}
+
 void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE_KS_Key rl_key){
-  const int N = in1->b->N, half_prec = sizeof(Torus)*8 - (sizeof(Torus)*8 - precision)/2;
+  const int N = in1->b->N;
+  const int half_prec1 = sizeof(Torus)*8 - (sizeof(Torus)*8 - precision)/2;
+  const int half_prec2 = sizeof(Torus)*8 - (sizeof(Torus)*8 - precision + 1)/2;
   assert(in1->k == 1 && in2->k == 1);
   TorusPolynomial tmp = polynomial_new_torus_polynomial(N);
   DFT_Polynomial tmp_DFT = polynomial_new_DFT_polynomial(N);
@@ -587,16 +738,16 @@ void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE
   DFT_Polynomial B1 = polynomial_new_DFT_polynomial(N);
   DFT_Polynomial B2 = polynomial_new_DFT_polynomial(N);
   // T = A1 * A2
-  polynomial_torus_scale(tmp, in1->a[0], half_prec);
+  polynomial_torus_scale(tmp, in1->a[0], half_prec1);
   polynomial_torus_to_DFT(A1, tmp);
-  polynomial_torus_scale(tmp, in2->a[0], half_prec);
+  polynomial_torus_scale(tmp, in2->a[0], half_prec2);
   polynomial_torus_to_DFT(A2, tmp);
   polynomial_mul_DFT(t->a[0], A1, A2);
   for (size_t i = 0; i < N; i++) t->b->coeffs[i] = 0.;
   // A = A1*B2 + B1*A2
-  polynomial_torus_scale(tmp, in1->b, half_prec);
+  polynomial_torus_scale(tmp, in1->b, half_prec1);
   polynomial_torus_to_DFT(B1, tmp);
-  polynomial_torus_scale(tmp, in2->b, half_prec);
+  polynomial_torus_scale(tmp, in2->b, half_prec2);
   polynomial_torus_to_DFT(B2, tmp);
   polynomial_mul_DFT(tmp_DFT, A1, B2);
   polynomial_mul_addto_DFT(tmp_DFT, B1, A2);
@@ -622,7 +773,9 @@ void trlwe_tensor_prod_FFT(TRLWE out, TRLWE in1, TRLWE in2, int precision, TRLWE
 
 // EvalAuto
 void trlwe_eval_automorphism(TRLWE out, TRLWE in, uint64_t gen, TRLWE_KS_Key ks_key){
-  polynomial_permute(out->a[0], in->a[0], gen);
+  for (size_t i = 0; i < out->k; i++){
+    polynomial_permute(out->a[i], in->a[i], gen);
+  }
   polynomial_permute(out->b, in->b, gen);
   trlwe_keyswitch(out, out, ks_key);
 }
